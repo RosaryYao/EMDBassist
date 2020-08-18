@@ -1,14 +1,28 @@
 import math
-
+import sys
 import matplotlib.pyplot as plt
 
-tbl = open("random_3d.txt", "r")
-tbl = list(tbl)
+# f = open("random_3d.txt", "r")
+# print(type(tbl))
+# tbl = list(tbl)
+# print(type(tbl))
 # print (tbl)
-new_tbl = []
-for each in tbl[1::]:
-    each = (each.replace("\n", ""))
-    new_tbl.append(each.split("\t"))
+# new_tbl = []
+# for each in tbl[1::]:
+#     each = (each.replace("\n", ""))
+#     new_tbl.append(each.split("\t"))
+
+new_tbl = list()
+with open("random_3d.txt", 'r') as f: # context manager
+    for row in f: # iterate over the file (file is iterable)
+        l = row.strip().split('\t')
+        if l[0] == 'id':
+            continue # go to the next iteration
+        new_tbl.append(l)
+
+
+
+# sys.exit(0)
 
 A = [1, 2, 3]
 B = [-1, 2, 3]
