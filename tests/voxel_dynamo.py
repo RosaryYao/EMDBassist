@@ -40,6 +40,7 @@ class Encode_em:
 
         print(self.volume_data)
         """
+
         length = int(len(voxel)/4)
         data = struct.unpack(f"{length}i", voxel)
         self.dynamo_header = data[0]
