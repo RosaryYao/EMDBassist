@@ -59,19 +59,19 @@ class Encode_em:
         print(f"{output_text}.txt" + " is created.")
 
     ### Below create another method to arrange the volume data into numpy.array()
-    '''
+
     def array(self):
         import numpy
         voxel_array = numpy.array(self.volume_data).reshape(self.nc, self.nr, self.ns)
         return (voxel_array)
-    '''
+
 
 # a main function where you can call interactive stuff
 def main():
     filename = input("Dynamo .em file: ")
     data = Encode_em(filename)
     data.output()
-    #voxel_array = data.array()
-    #print(voxel_array[:10])
+    voxel_array = data.array()
+    print(voxel_array[:10])
 
 main()
