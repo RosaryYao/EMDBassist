@@ -69,7 +69,7 @@ class Polygon:
 
     ## Redefine plot function - to plot 3d filled shapes, instead of surfaces
 
-    def rotate(self,convension="zxz",a=0, b=0, c=0):
+    def rotate(self, convention="zxz", a=0, b=0, c=0):
         # Combine two methods (rotation and translation) - as rotation must be done before translation
         # If not specified, theta = 0, and vector = [0,0,0]
         """
@@ -79,7 +79,7 @@ class Polygon:
         """
         
         # ROTATION   
-        if convension == "zxz":
+        if convention == "zxz":
             matrix = np.array([
                 [math.cos(a)*math.cos(c)-math.cos(b)*math.sin(a)*math.sin(c), -math.cos(a)*math.sin(c)-math.cos(b)*math.cos(c)*math.sin(a), math.sin(a)*math.sin(b)],
                 [math.cos(c)*math.sin(a)+math.cos(a)*math.cos(b)*math.sin(c), math.cos(a)*math.cos(b)*math.cos(c)-math.sin(a)*math.sin(c), -math.cos(a)*math.sin(b)],
@@ -88,7 +88,7 @@ class Polygon:
 
             product = matrix.dot(self.polygon)
         
-        elif convension == "zyz":
+        elif convention == "zyz":
             matrix = np.array([
                 [math.cos(a)*math.cos(b)*math.cos(c)-math.sin(a)*math.sin(c), -math.cos(c)*math.sin(a)-math.cos(a)*math.cos(b)*math.sin(c), math.cos(a)*math.sin(b)],
                 [math.cos(a)*math.sin(c)+math.cos(b)*math.cos(c)*math.sin(a), math.cos(a)*math.cos(c)-math.cos(b)*math.sin(a)*math.sin(c), math.sin(a)*math.sin(b)],
@@ -97,7 +97,7 @@ class Polygon:
 
             product = matrix.dot(self.polygon)
         
-        elif convension == "yzy":
+        elif convention == "yzy":
             matrix = np.array([
                 [math.cos(a)*math.cos(b)*math.cos(c)-math.sin(a)*math.sin(c), -math.cos(a)*math.sin(b), math.cos(c)*math.sin(a)+math.cos(a)*math.cos(b)*math.sin(c)],
                 [math.cos(c)*math.sin(b), math.cos(b), math.sin(b)*math.sin(c)],
@@ -106,7 +106,7 @@ class Polygon:
 
             product = matrix.dot(self.polygon)
 
-        elif convension == "yxy":
+        elif convention == "yxy":
             matrix = np.array([
                 [math.cos(a)*math.cos(c)-math.cos(b)*math.sin(a)*math.sin(c), math.sin(a)*math.sin(b), math.cos(a)*math.sin(c)+math.cos(b)*math.cos(c)*math.sin(a)],
                 [math.sin(b)*math.sin(c), math.cos(b), -math.cos(c)*math.sin(b)],
@@ -115,7 +115,7 @@ class Polygon:
 
             product = matrix.dot(self.polygon)
 
-        elif convension == "xyx":
+        elif convention == "xyx":
             matrix = np.array([
                 [math.cos(b), math.sin(b)*math.sin(c), math.cos(c)*math.sin(b)],
                 [math.sin(a)*math.sin(b), math.cos(a)*math.cos(c)-math.cos(b)*math.sin(a)*math.sin(c), -math.cos(a)*math.sin(c)-math.cos(b)*math.cos(c)*math.sin(a)],
@@ -124,7 +124,7 @@ class Polygon:
 
             product = matrix.dot(self.polygon)
         
-        elif convension == "xzx":
+        elif convention == "xzx":
             matrix = np.array([
                 [math.cos(b), -math.cos(c)*math.sin(b), math.sin(b)*math.sin(c)],
                 [math.cos(a)*math.sin(b), math.cos(a)*math.cos(b)*math.cos(c)-math.sin(a)*math.sin(c), -math.cos(c)*math.sin(a)-math.cos(a)*math.cos(b)*math.sin(c)],
