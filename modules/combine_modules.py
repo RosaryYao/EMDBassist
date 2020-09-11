@@ -2,7 +2,6 @@ import transformation_dynamo as transform
 import voxel_dynamo as voxel
 import numpy
 import os
-
 """
 The output format:
 -----------Transformation data--------------
