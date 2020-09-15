@@ -43,7 +43,8 @@ class EM:
             self.nc, self.nr, self.ns = self.dynamo_header[1:4]
             # then we read the data
             # by default .read() reads from the current position to the end
-            self.volume_encoded = base64.b64encode(em.read())
+            volume_encoded = base64.b64encode(em.read())
+            self.volume_encoded = volume_encoded.decode("utf8")
             em.seek(128*4)
             self.volume_data = struct.unpack(f'{self.nc * self.nr * self.ns}{type_flag}', em.read())
             

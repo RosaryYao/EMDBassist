@@ -2,6 +2,10 @@ import transformation_dynamo as transform
 import voxel_dynamo as voxel
 import numpy
 import os
+import zlib
+import base64
+import argparse
+
 """
 The output format:
 -----------Transformation data--------------
@@ -15,56 +19,77 @@ ns
 volume_data (in string)
 """
 
+
 def combine_data(em, tbl, output):
     with open(tbl, "rt") as tbl:
         # Create a list that contains all the transformations, and each transformation is treated as an element in the list
         # As well as rotations
-        translation_set = []
-        rotation_set = []
-        polygon = [1,1,1] # Just to make class Polygon works... Is there a better way? -> Rewrite the script? 
+        transformation_set = []
+        polygon = [1, 1, 1]  # Just to make class Polygon works...
+        length = 0
 
         for line in tbl:
+            rotation_string = ""
+            transformation = ""
             line = str(line).split(" ")
-            vector = [float(line[3]), float(line[4]), float(line[5])]
-            translation_set.append(vector)
+            vector = line[3] + "\t" + line[4] + "\t" + line[5]
 
-            # rotation in zxz convension; rotation angle in the corresponding order: a, b, c.
-            a, b, c = float(line[6]), float(line[7]), float(line[8]) 
+            # rotation in zxz convention; rotation angle in the corresponding order: a, b, c.
+            a, b, c = float(line[6]), float(line[7]), float(line[8])
             rotation = transform.Polygon(polygon).rotate(a=a, b=b, c=c)
-            rotation_list = rotation.tolist()
-            rotation_set.append(rotation_list)    
+            rotation = rotation.tolist()
+            for row in rotation:
+                for each in row:
+                    rotation_string += (str(each) + "\t")
+            rotation = rotation_string
+            transformation = rotation + vector
+
+            # print(transformation)
+            transformation_set.append(transformation)
+            length += 1
 
     # Output the final text file
     em = voxel.EM(em)
     with open(f"{output}.txt", "w+") as file:
-        for i in range(len(rotation_set)):
-            # fixme: write our values only with \t separation
-            # fixme: add the index
-            file.write(str(translation_set[i]) + "\t" + str(rotation_set[i]) + "\n")
-        # fixme: bytes -> decode('utf-8')
-        # fixme: add fieldname e.g. nc,nr,ns, data
-        # todo: zip the data: https://docs.python.org/3/library/zlib.html
-        file.write(str(em.mode) + "\n" + str(em.nc) + "\n" + str(em.nr) +"\n" + str(em.ns) + "\n" + str(em.volume_encoded)[2:])
-    # strings are encoded; they have an encode method
-    # encoding generates bytes
-    # we encode using an encoding; most common is utf-8
-    # byes are decoded; they have a decode method
-    # decode using utf-8
+        for i in range(length):
+            file.write("Tag, transformation:" + "\t" + str(i + 1) + "\t" + transformation_set[i] + "\n")
+
+        file.write("Mode:" + "\t" + str(em.mode) + "\n")
+        file.write("Nc:" + "\t" + str(em.nc) + "\n")
+        file.write("Nr:" + "\t" + str(em.nr) + "\n")
+        file.write("Ns:" + "\t" + str(em.ns) + "\n")
+        file.write("Data:" + "\t" + str(em.volume_encoded))
+
     print(f"{output}.txt" + " is created.")
+
+    # Compress data
+    with open(f"{output}.txt", "r+") as file:
+        # First encode into binary?
+        file = str(file.read())
+        file = file.encode("utf8")
+        compressed_string = zlib.compress(file, level=9)
+    with open(f"{output}_compressed.txt", "wb") as compressed:
+        compressed.write(compressed_string)
+        print("Compressed file is created.")
+        # Did not compress much?
+
 
 def main():
     # todo: consider using argparse library: https://docs.python.org/3/library/argparse.html
     # python my_script.py --em-file <path/file.em> --tbl-file <path/file.tbl>
     # python my_script.py <folder>
     # python my_script.py <prefix>
-    em = input("Averaged particle file (.em): ")
-    if not os.path.exists(em):
-        raise ValueError(f"file '{em} does not exist")
-    tbl = input("Transformation table (.tbl): ")
-    output = input("Output file name (.txt)")
-    combine_data(em,tbl,output)
+    # Argparse
+    parser = argparse.ArgumentParser(description = "output a single file that contains transformation data and voxel data")
+    parser.add_argument("-e", "--em", metavar="", required=True, help="the Dynamo .em file.")
+    parser.add_argument("-t", "--tbl", metavar="", required=True, help="the Dynamo .tbl file")
+    parser.add_argument("-o", "--output", metavar="", required=True, help="the output file name (.txt)")
+    args = parser.parse_args()
+
+    if not os.path.exists(args.em):
+        raise ValueError(f"file '{args.em} does not exist")
+    if not os.path.exists(args.tbl):
+        raise ValueError(f"file '{args.tbl} does not exist")
+
+    combine_data(args.em, args.tbl, args.output)
 main()
-
-
-
-
