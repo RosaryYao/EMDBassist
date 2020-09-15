@@ -34,7 +34,7 @@ def combine_data(em, tbl, output):
             line = str(line).split(" ")
             vector = line[3] + "\t" + line[4] + "\t" + line[5]
 
-            # rotation in zxz convension; rotation angle in the corresponding order: a, b, c.
+            # rotation in zxz convention; rotation angle in the corresponding order: a, b, c.
             a, b, c = float(line[6]), float(line[7]), float(line[8])
             rotation = transform.Polygon(polygon).rotate(a=a, b=b, c=c)
             rotation = rotation.tolist()
