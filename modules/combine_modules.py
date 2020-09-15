@@ -58,7 +58,8 @@ def combine_data(em, tbl, output):
         file.write("Nc:" + "\t" + str(em.nc) + "\n")
         file.write("Nr:" + "\t" + str(em.nr) + "\n")
         file.write("Ns:" + "\t" + str(em.ns) + "\n")
-        file.write("Data:" + "\t" + str(em.volume_encoded))
+        file.write(f"Data:\t{em.volume_compressed}")
+        # file.write("Data:" + "\t" + str(em.volume_encoded))
 
     print(f"{output}.txt" + " is created.")
 
@@ -67,11 +68,13 @@ def combine_data(em, tbl, output):
         # First encode into binary?
         file = str(file.read())
         file = file.encode("utf8")
-        compressed_string = zlib.compress(file, level=9)
+        # compressed_string = zlib.compress(file, level=9)
+    """
     with open(f"{output}_compressed.txt", "wb") as compressed:
         compressed.write(compressed_string)
         print("Compressed file is created.")
         # Did not compress much?
+    """
 
 
 def main():
