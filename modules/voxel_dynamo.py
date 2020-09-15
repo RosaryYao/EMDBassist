@@ -43,14 +43,32 @@ class EM:
             self.nc, self.nr, self.ns = self.dynamo_header[1:4]
             # then we read the data
             # by default .read() reads from the current position to the end
-            volume_encoded = base64.b64encode(em.read())
+            self.raw_data = em.read()
+            volume_encoded = base64.b64encode(self.raw_data)
             self.volume_encoded = volume_encoded.decode("utf8")
-            em.seek(128*4)
-            self.volume_data = struct.unpack(f'{self.nc * self.nr * self.ns}{type_flag}', em.read())
+            # em.seek(128*4)
+            # todo: defer to a property
+            self.volume_data = struct.unpack(f'{self.nc * self.nr * self.ns}{type_flag}', self.raw_data)
             
         #print(self.volume_encoded[:100])
         #print(type_flag)
         #print(self.volume_data[:10])
+
+    # a property is a method that behaves like an attribute
+    # file = File('nameoffile.txt')
+    # file.is_open
+    # class File:
+    #   ...
+    #   @property
+    #   def is_open(self):
+    #       if self.content is None:
+    #           return True
+    #       return False
+    @property
+    def volume_compressed(self):
+        import zlib
+        return zlib.compress(self.raw_data)
+
 
     ### Below create another method to output into a .txt file
     def output(self):
