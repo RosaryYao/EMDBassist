@@ -44,8 +44,8 @@ class EM:
             # then we read the data
             # by default .read() reads from the current position to the end
             self.raw_data = em.read()
-            volume_encoded = base64.b64encode(self.raw_data)
-            self.volume_encoded = volume_encoded.decode("utf8")
+            # volume_encoded = base64.b64encode(self.raw_data)
+            # self.volume_encoded = volume_encoded.decode("utf8")
             # em.seek(128*4)
             # todo: defer to a property
             self.volume_data = struct.unpack(f'{self.nc * self.nr * self.ns}{type_flag}', self.raw_data)
@@ -65,9 +65,19 @@ class EM:
     #           return True
     #       return False
     @property
+    def volume_encoded(self):
+        return base64.b64encode(self.raw_data)
+
+    @property
     def volume_compressed(self):
         import zlib
         return zlib.compress(self.raw_data)
+
+    @property
+    def volume_encoded_compressed(self):
+        return base64.b64encode(self.volume_compressed)
+
+
 
 
     ### Below create another method to output into a .txt file
