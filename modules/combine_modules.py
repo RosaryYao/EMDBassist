@@ -3,6 +3,7 @@ import voxel_dynamo as voxel
 import numpy
 import os
 import zlib
+import sys
 import base64
 import argparse
 
@@ -19,8 +20,8 @@ volume_data (in string)
 """
 
 
-def combine_data(em, tbl, output, flag_compress = True):
-    with open(tbl, "rt") as tbl:
+def combine_data(args):
+    with open(args.tbl, "rt") as tbl:
         # Create a list that contains all the transformations, and each transformation is treated as an element in the list
         # As well as rotations
         transformation_set = []
@@ -33,6 +34,7 @@ def combine_data(em, tbl, output, flag_compress = True):
 
             # rotation in zxz convention; rotation angle in the corresponding order: a, b, c.
             a, b, c = float(line[6]), float(line[7]), float(line[8])
+            # todo: replace with a function
             rotation = transform.Polygon(polygon).rotate(a=a, b=b, c=c)
             rotation = rotation.tolist()
             flag = 3
@@ -48,8 +50,8 @@ def combine_data(em, tbl, output, flag_compress = True):
             length += 1
 
     # Output the final text file
-    em = voxel.EM(em)
-    with open(f"{output}.txt", "w+") as file:
+    em = voxel.EM(args.em)
+    with open(f"{args.output}.txt", "w+") as file:
         for i in range(length):
             file.write("Tag, transformation:" + "\t" + str(i + 1) + "\t" + transformation_set[i] + "\n")
 
@@ -58,33 +60,36 @@ def combine_data(em, tbl, output, flag_compress = True):
         file.write("Nr:" + "\t" + str(em.nr) + "\n")
         file.write("Ns:" + "\t" + str(em.ns) + "\n")
 
-        if flag_compress:
-            file.write(f"Data:\t{em.volume_encoded_compressed}")
-            print(f"{output}_compressed.txt" + " is created.")
-        elif flag_compress is False:
-            file.write(f"Data:\t{em.volume_encoded}")
-            print(f"{output}.txt" + " is created.")
+        if args.compress:
+            print('compressed')
+            file.write(f"Data:\t{em.volume_encoded_compressed.decode('utf-8')}")
+            print(f"{args.output}_compressed.txt" + " is created.")
+        else:
+            print('uncompressed')
+            file.write(f"Data:\t{em.volume_encoded.decode('utf-8')}")
+            print(f"{args.output}.txt" + " is created.")
 
 
 
 def main():
     # Argparse
+    # fixme: global
     global flag_compress
     parser = argparse.ArgumentParser(description = "output a single file that contains transformation data and voxel data. Default voxel data is zlib compressed")
     parser.add_argument("-e", "--em", metavar="", required=True, help="the Dynamo .em file.")
     parser.add_argument("-t", "--tbl", metavar="", required=True, help="the Dynamo .tbl file")
     parser.add_argument("-o", "--output", metavar="", required=True, help="the output file name (.txt)")
     # Add compression flag - mutually exclusive group
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("-c", "--compress", action="store_true", help="Compress the voxel data")
-    group.add_argument("-nc", "--not_compress", action="store_true", help="Voxel data not compressed, in ascii encoded string")
+    # group = parser.add_mutually_exclusive_group(required=True)
+    parser.add_argument("-c", "--compress", default=False, action="store_true", help="Compress the voxel data [default: False]")
+    # group.add_argument("-nc", "--not_compress", action="store_true", help="Voxel data not compressed, in ascii encoded string")
     args = parser.parse_args()
 
-    if args.compress:
-        flag_compress = True
+    # if args.compress:
+    #     flag_compress = True
         # Output data with compressed raw_data, in binary
-    elif args.not_compress:
-        flag_compress = False
+    # elif args.not_compress:
+    #     flag_compress = False
         # Output data in full ascii encoded data/string
 
     if not os.path.exists(args.em):
@@ -92,6 +97,9 @@ def main():
     if not os.path.exists(args.tbl):
         raise ValueError(f"file '{args.tbl} does not exist")
 
-    combine_data(args.em, args.tbl, args.output, flag_compress)
+    combine_data(args)
+    return 0
 
-main()
+# only run main if this script is being executed
+if __name__ == "__main__":
+    sys.exit(main())

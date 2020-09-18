@@ -20,7 +20,8 @@ class Polygon:
         """
 
         # ROTATION   
-        global matrix
+        matrix = None
+        # todo: test
         if convention == "zxz":
             matrix = np.array([
                 [math.cos(a) * math.cos(c) - math.cos(b) * math.sin(a) * math.sin(c),
