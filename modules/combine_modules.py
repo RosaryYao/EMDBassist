@@ -19,7 +19,7 @@ volume_data (in string)
 """
 
 
-def combine_data(em, tbl, output, flag_compress = True):
+def combine_data(em, tbl, output, flag_compress=True):
     with open(tbl, "rt") as tbl:
         # Create a list that contains all the transformations, and each transformation is treated as an element in the list
         # As well as rotations
@@ -66,18 +66,19 @@ def combine_data(em, tbl, output, flag_compress = True):
             print(f"{output}.txt" + " is created.")
 
 
-
 def main():
     # Argparse
     global flag_compress
-    parser = argparse.ArgumentParser(description = "output a single file that contains transformation data and voxel data. Default voxel data is zlib compressed")
+    parser = argparse.ArgumentParser(
+        description="output a single file that contains transformation data and voxel data. Default voxel data is zlib compressed")
     parser.add_argument("-e", "--em", metavar="", required=True, help="the Dynamo .em file.")
     parser.add_argument("-t", "--tbl", metavar="", required=True, help="the Dynamo .tbl file")
     parser.add_argument("-o", "--output", metavar="", required=True, help="the output file name (.txt)")
     # Add compression flag - mutually exclusive group
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("-c", "--compress", action="store_true", help="Compress the voxel data")
-    group.add_argument("-nc", "--not_compress", action="store_true", help="Voxel data not compressed, in ascii encoded string")
+    group.add_argument("-nc", "--not_compress", action="store_true",
+                       help="Voxel data not compressed, in ascii encoded string")
     args = parser.parse_args()
 
     if args.compress:
@@ -93,5 +94,6 @@ def main():
         raise ValueError(f"file '{args.tbl} does not exist")
 
     combine_data(args.em, args.tbl, args.output, flag_compress)
+
 
 main()
