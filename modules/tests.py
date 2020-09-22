@@ -47,8 +47,7 @@ class EMDBassist(unittest.TestCase):
         final_dot2 = np.array([[], [], []])
 
         # Test rotation matrix
-        print(self.rotate_zxz.dot(dot))
-        print(final_dot)
+        self.assertEqual(final_dot.tolist(), self.rotate_zxz.dot(dot).tolist())
 
 
 
