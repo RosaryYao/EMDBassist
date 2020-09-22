@@ -7,25 +7,31 @@ import sys
 import base64
 import argparse
 
-"""
-The output format:
------------Transformation data--------------
-(translation vector + "\t" + rotation matrix)*n
------------Map information-------------------
-EMDB map format
-nc
-nr
-ns
-volume_data (in string)
-"""
+
+# Rotation function - to run the tests.py?
+def rotate(a, b, c):
+    # todo: replace with a function
+    rotation = transform.Polygon().rotate(a=a, b=b, c=c)
+    rotation = rotation.tolist()
+    return rotation
 
 
 def combine_data(args):
+    """
+    The output format:
+    -----------Transformation data--------------
+    (translation vector + "\t" + rotation matrix)*n
+    -----------Map information-------------------
+    EMDB map format
+    nc
+    nr
+    ns
+    volume_data (in string)
+    """
     with open(args.tbl, "rt") as tbl:
-        # Create a list that contains all the transformations, and each transformation is treated as an element in the list
-        # As well as rotations
+        # Create a list that contains all the transformations,
+        # and each transformation is treated as an element in the list
         transformation_set = []
-        polygon = [1, 1, 1]  # Just to make class Polygon works...
         length = 0
 
         for line in tbl:
@@ -34,9 +40,9 @@ def combine_data(args):
 
             # rotation in zxz convention; rotation angle in the corresponding order: a, b, c.
             a, b, c = float(line[6]), float(line[7]), float(line[8])
-            # todo: replace with a function
-            rotation = transform.Polygon(polygon).rotate(a=a, b=b, c=c)
-            rotation = rotation.tolist()
+            # Call the function
+            rotation = rotate(a, b, c)
+
             flag = 3
             for row in rotation:
                 rotation_string = ""
@@ -70,27 +76,28 @@ def combine_data(args):
             print(f"{args.output}.txt" + " is created.")
 
 
-
 def main():
     # Argparse
     # fixme: global
     global flag_compress
-    parser = argparse.ArgumentParser(description = "output a single file that contains transformation data and voxel data. Default voxel data is zlib compressed")
+    parser = argparse.ArgumentParser(
+        description="output a single file that contains transformation data and voxel data. Default voxel data is zlib compressed")
     parser.add_argument("-e", "--em", metavar="", required=True, help="the Dynamo .em file.")
     parser.add_argument("-t", "--tbl", metavar="", required=True, help="the Dynamo .tbl file")
     parser.add_argument("-o", "--output", metavar="", required=True, help="the output file name (.txt)")
     # Add compression flag - mutually exclusive group
     # group = parser.add_mutually_exclusive_group(required=True)
-    parser.add_argument("-c", "--compress", default=False, action="store_true", help="Compress the voxel data [default: False]")
+    parser.add_argument("-c", "--compress", default=False, action="store_true",
+                        help="Compress the voxel data [default: False]")
     # group.add_argument("-nc", "--not_compress", action="store_true", help="Voxel data not compressed, in ascii encoded string")
     args = parser.parse_args()
 
     # if args.compress:
     #     flag_compress = True
-        # Output data with compressed raw_data, in binary
+    # Output data with compressed raw_data, in binary
     # elif args.not_compress:
     #     flag_compress = False
-        # Output data in full ascii encoded data/string
+    # Output data in full ascii encoded data/string
 
     if not os.path.exists(args.em):
         raise ValueError(f"file '{args.em} does not exist")
@@ -99,6 +106,7 @@ def main():
 
     combine_data(args)
     return 0
+
 
 # only run main if this script is being executed
 if __name__ == "__main__":

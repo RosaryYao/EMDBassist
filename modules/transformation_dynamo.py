@@ -7,7 +7,8 @@ class Polygon:
     This class has attributes plot_polygon, transform_polygon  
     """
 
-    def __init__(self, polygon):
+    def __init__(self):
+        polygon = [1,1,1]
         self.polygon = np.array(polygon).T
 
     def rotate(self, convention="zxz", a=0, b=0, c=0):
@@ -31,7 +32,7 @@ class Polygon:
                 [math.sin(b) * math.sin(c), math.cos(c) * math.sin(b), math.cos(b)]
             ])
 
-            product = matrix.dot(self.polygon)
+            # product = matrix.dot(self.polygon)
 
         elif convention == "zyz":
             matrix = np.array([
@@ -42,7 +43,7 @@ class Polygon:
                 [-math.cos(c) * math.sin(b), math.sin(b) * math.sin(c), math.cos(b)]
             ])
 
-            product = matrix.dot(self.polygon)
+            # product = matrix.dot(self.polygon)
 
         elif convention == "yzy":
             matrix = np.array([
@@ -53,7 +54,7 @@ class Polygon:
                  math.cos(a) * math.cos(c) - math.cos(b) * math.sin(a) * math.sin(c)]
             ])
 
-            product = matrix.dot(self.polygon)
+            # product = matrix.dot(self.polygon)
 
         elif convention == "yxy":
             matrix = np.array([
@@ -64,7 +65,7 @@ class Polygon:
                  math.cos(a) * math.cos(b) * math.cos(c) - math.sin(a) * math.sin(c)]
             ])
 
-            product = matrix.dot(self.polygon)
+            # product = matrix.dot(self.polygon)
 
         elif convention == "xyx":
             matrix = np.array([
