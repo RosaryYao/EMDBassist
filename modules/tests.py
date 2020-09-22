@@ -1,10 +1,10 @@
-import unittest
-import voxel_dynamo as voxel
-import transformation_dynamo as transform
-import combine_modules as combine
-import random
 import math
+import unittest
+
 import numpy as np
+import voxel_dynamo as voxel
+from combine_modules import rotate
+
 
 # we are inheriting the unittest.TestCase class
 # it has builtin special assertion methods
@@ -18,7 +18,6 @@ class EMDBassist(unittest.TestCase):
         self.tbl = 'a.tbl'
         self.em = voxel.EM(self.filename)
 
-
     def tearDown(self) -> None:
         print('test finished!')
 
@@ -31,14 +30,14 @@ class EMDBassist(unittest.TestCase):
         self.assertIsInstance(self.em.dy_mode, int)
         self.assertIn(self.em.dy_mode, [2, 4, 5, 9])
 
-    def test_rotation_matrix(self):
+    def test_zxz(self):
         """
         Tests to ensure rotation matrices are correct.
         Useful visualization: http://danceswithcode.net/engineeringnotes/rotations_in_3d/demo3D/rotations_in_3d_tool.html
         """
 
         a, b, c = math.radians(90), math.radians(90), math.radians(90)
-        self.rotate_zxz = transform.Polygon().rotate(a=a, b=b, c=c)
+        rotate_zxz = rotate(a, b, c, convention="zxz")
 
         dot = np.array([[1], [0], [0]])
         final_dot = np.array([[0], [0], [1]])
@@ -47,15 +46,15 @@ class EMDBassist(unittest.TestCase):
         final_dot2 = np.array([[], [], []])
 
         # Test rotation matrix
-        print(self.rotate_zxz.dot(dot))
+        print(rotate_zxz.dot(dot))
         print(final_dot)
+        self.assertTrue(np.allclose(rotate_zxz.dot(dot), final_dot))
+        self.assertTrue(np.allclose(rotate_zxz.dot(dot), final_dot))
+        # todo: test other conventions
 
-
-
-
-
-
-
+    def test_zyz(self):
+        """Check that zyz is calculated correctly"""
+        self.assertTrue(False)
 
 
 if __name__ == "__main__":

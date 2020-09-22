@@ -1,19 +1,72 @@
-import transformation_dynamo as transform
-import voxel_dynamo as voxel
-import numpy
-import os
-import zlib
-import sys
-import base64
 import argparse
+import math
+import os
+import sys
+
+import numpy as np
+import voxel_dynamo as voxel
 
 
-# Rotation function - to run the tests.py?
-def rotate(a, b, c):
-    # todo: replace with a function
-    rotation = transform.Polygon().rotate(a=a, b=b, c=c)
-    rotation = rotation.tolist()
-    return rotation
+def rotate(a, b, c, convention="zxz"):
+    # Combine two methods (rotation and translation) - as rotation must be done before translation
+    # If not specified, theta = 0, and vector = [0,0,0]
+    """
+    Transformation contains two parts: first rotation, then translation.
+    Rotation uses Euler angles. 6 conventions exist: "zxz", "zyz", "xzx", "xyx", "yxy", "yzy". Default is "zxz" convention.
+    Rotation here is anticlockwise, since Dynamo rotates objects in clockwise direction.
+    """
+
+    # ROTATION
+    # todo: test
+    if convention == "zxz":
+        return np.array([
+            [math.cos(a) * math.cos(c) - math.cos(b) * math.sin(a) * math.sin(c),
+             -math.cos(a) * math.sin(c) - math.cos(b) * math.cos(c) * math.sin(a), math.sin(a) * math.sin(b)],
+            [math.cos(c) * math.sin(a) + math.cos(a) * math.cos(b) * math.sin(c),
+             math.cos(a) * math.cos(b) * math.cos(c) - math.sin(a) * math.sin(c), -math.cos(a) * math.sin(b)],
+            [math.sin(b) * math.sin(c), math.cos(c) * math.sin(b), math.cos(b)]
+        ])
+    elif convention == "zyz":
+        return np.array([
+            [math.cos(a) * math.cos(b) * math.cos(c) - math.sin(a) * math.sin(c),
+             -math.cos(c) * math.sin(a) - math.cos(a) * math.cos(b) * math.sin(c), math.cos(a) * math.sin(b)],
+            [math.cos(a) * math.sin(c) + math.cos(b) * math.cos(c) * math.sin(a),
+             math.cos(a) * math.cos(c) - math.cos(b) * math.sin(a) * math.sin(c), math.sin(a) * math.sin(b)],
+            [-math.cos(c) * math.sin(b), math.sin(b) * math.sin(c), math.cos(b)]
+        ])
+    elif convention == "yzy":
+        return np.array([
+            [math.cos(a) * math.cos(b) * math.cos(c) - math.sin(a) * math.sin(c), -math.cos(a) * math.sin(b),
+             math.cos(c) * math.sin(a) + math.cos(a) * math.cos(b) * math.sin(c)],
+            [math.cos(c) * math.sin(b), math.cos(b), math.sin(b) * math.sin(c)],
+            [-math.cos(a) * math.sin(c) - math.cos(b) * math.cos(c) * math.sin(a), math.sin(a) * math.sin(b),
+             math.cos(a) * math.cos(c) - math.cos(b) * math.sin(a) * math.sin(c)]
+        ])
+    elif convention == "yxy":
+        return np.array([
+            [math.cos(a) * math.cos(c) - math.cos(b) * math.sin(a) * math.sin(c), math.sin(a) * math.sin(b),
+             math.cos(a) * math.sin(c) + math.cos(b) * math.cos(c) * math.sin(a)],
+            [math.sin(b) * math.sin(c), math.cos(b), -math.cos(c) * math.sin(b)],
+            [-math.cos(c) * math.sin(a) - math.cos(a) * math.cos(b) * math.sin(c), math.cos(a) * math.sin(b),
+             math.cos(a) * math.cos(b) * math.cos(c) - math.sin(a) * math.sin(c)]
+        ])
+    elif convention == "xyx":
+        return np.array([
+            [math.cos(b), math.sin(b) * math.sin(c), math.cos(c) * math.sin(b)],
+            [math.sin(a) * math.sin(b), math.cos(a) * math.cos(c) - math.cos(b) * math.sin(a) * math.sin(c),
+             -math.cos(a) * math.sin(c) - math.cos(b) * math.cos(c) * math.sin(a)],
+            [-math.cos(a) * math.sin(b), math.cos(c) * math.sin(a) + math.cos(a) * math.cos(b) * math.sin(c),
+             math.cos(a) * math.cos(b) * math.cos(c) - math.sin(a) * math.sin(c)]
+        ])
+    elif convention == "xzx":
+        return np.array([
+            [math.cos(b), -math.cos(c) * math.sin(b), math.sin(b) * math.sin(c)],
+            [math.cos(a) * math.sin(b), math.cos(a) * math.cos(b) * math.cos(c) - math.sin(a) * math.sin(c),
+             -math.cos(c) * math.sin(a) - math.cos(a) * math.cos(b) * math.sin(c)],
+            [math.sin(a) * math.sin(b), math.cos(a) * math.sin(c) + math.cos(b) * math.cos(c) * math.sin(a),
+             math.cos(a) * math.cos(c) - math.cos(b) * math.sin(a) * math.sin(c)]
+        ])
+    return
 
 
 def combine_data(args):
