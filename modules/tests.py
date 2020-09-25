@@ -3,9 +3,11 @@ import unittest
 import numpy as np
 import argparse
 import sys
+# trick: use shlex to parse commands
+import shlex
 
 import voxel_dynamo as voxel
-from combine_modules import rotate
+from combine_modules import rotate, parse_args
 
 
 # we are inheriting the unittest.TestCase class
@@ -17,8 +19,18 @@ from combine_modules import rotate
 
 
 class EMDBassist(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        pass
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        pass
+
     def setUp(self) -> None:
         # initialise before each test is run
+        sys.argv = shlex.split("combine_modules.py -e a.em -t a.tbl -o rm")
+        args = parse_args()
         self.filename = args.em
         self.tbl = args.tbl
 
@@ -75,6 +87,7 @@ class EMDBassist(unittest.TestCase):
         self.assertTrue(np.allclose(rotate_yzy.dot(self.dot2), final_dot2))
 
     def test_yxy(self):
+
         rotate_yxy = rotate(self.a, self.b, self.c, convention="yxy")
 
         final_dot = np.array([[0], [1], [0]])

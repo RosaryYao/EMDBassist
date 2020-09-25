@@ -52,4 +52,9 @@ class EM:
     def volume_encoded_compressed(self):
         return base64.b64encode(self.volume_compressed)
 
+    @property
+    def volume_array(self):
+        import numpy
+        return numpy.array(self.volume_data, dtype=numpy.float32).reshape(self.nc, self.nr, self.ns)
+
 
