@@ -101,6 +101,10 @@ class EMDBassist(unittest.TestCase):
         self.assertTrue(np.allclose(rotate_xyx.dot(self.dot), final_dot))
         self.assertTrue(np.allclose(rotate_xyx.dot(self.dot2), final_dot2))
 
+    def test_transformation(self):
+        # todo: check that the matrix in the output txt has shape 3*4, and corresponds to the correct order?
+        self.assertTrue(True)
+
 
 if __name__ == "__main__":
     # Argparse
@@ -109,4 +113,4 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--tbl", metavar="", required=True, help="the Dynamo .tbl file")
     args = parser.parse_args()
     unittest.main(args)
-
+    # todo: error here - unknown arguments -e -t.
