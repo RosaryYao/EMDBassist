@@ -7,65 +7,55 @@ import numpy as np
 import voxel_dynamo as voxel
 
 
+# Define rotation matrices (anticlockwise)
+def matrix_z(theta):
+    matrix = np.array([
+        [math.cos(theta), -math.sin(theta), 0],
+        [math.sin(theta), math.cos(theta), 0],
+        [0, 0, 1]
+    ])
+    return matrix
+
+
+def matrix_y(theta):
+    matrix = np.array([
+        [math.cos(theta), 0, math.sin(theta)],
+        [0, 1, 0],
+        [-math.sin(theta), 0, math.cos(theta)]
+    ])
+    return matrix
+
+
+def matrix_x(theta):
+    matrix = np.array([
+        [1, 0, 0],
+        [0, math.cos(theta), -math.sin(theta)],
+        [0, math.sin(theta), math.cos(theta)]
+    ])
+    return matrix
+
+
 def rotate(a, b, c, convention="zxz"):
-    # Combine two methods (rotation and translation) - as rotation must be done before translation
-    # If not specified, theta = 0, and vector = [0,0,0]
     """
-    Transformation contains two parts: first rotation, then translation.
     Rotation uses Euler angles. 6 conventions exist: "zxz", "zyz", "xzx", "xyx", "yxy", "yzy". Default is "zxz" convention.
     Rotation here is anticlockwise, since Dynamo rotates objects in clockwise direction.
     """
 
-    # ROTATION
-    # todo: test
     if convention == "zxz":
-        return np.array([
-            [math.cos(a) * math.cos(c) - math.cos(b) * math.sin(a) * math.sin(c),
-             -math.cos(a) * math.sin(c) - math.cos(b) * math.cos(c) * math.sin(a), math.sin(a) * math.sin(b)],
-            [math.cos(c) * math.sin(a) + math.cos(a) * math.cos(b) * math.sin(c),
-             math.cos(a) * math.cos(b) * math.cos(c) - math.sin(a) * math.sin(c), -math.cos(a) * math.sin(b)],
-            [math.sin(b) * math.sin(c), math.cos(c) * math.sin(b), math.cos(b)]
-        ])
+        return matrix_z(a).dot(matrix_x(b)).dot(matrix_z(c))
     elif convention == "zyz":
-        return np.array([
-            [math.cos(a) * math.cos(b) * math.cos(c) - math.sin(a) * math.sin(c),
-             -math.cos(c) * math.sin(a) - math.cos(a) * math.cos(b) * math.sin(c), math.cos(a) * math.sin(b)],
-            [math.cos(a) * math.sin(c) + math.cos(b) * math.cos(c) * math.sin(a),
-             math.cos(a) * math.cos(c) - math.cos(b) * math.sin(a) * math.sin(c), math.sin(a) * math.sin(b)],
-            [-math.cos(c) * math.sin(b), math.sin(b) * math.sin(c), math.cos(b)]
-        ])
+        return matrix_z(a).dot(matrix_y(b)).dot(matrix_z(c))
     elif convention == "yzy":
-        return np.array([
-            [math.cos(a) * math.cos(b) * math.cos(c) - math.sin(a) * math.sin(c), -math.cos(a) * math.sin(b),
-             math.cos(c) * math.sin(a) + math.cos(a) * math.cos(b) * math.sin(c)],
-            [math.cos(c) * math.sin(b), math.cos(b), math.sin(b) * math.sin(c)],
-            [-math.cos(a) * math.sin(c) - math.cos(b) * math.cos(c) * math.sin(a), math.sin(a) * math.sin(b),
-             math.cos(a) * math.cos(c) - math.cos(b) * math.sin(a) * math.sin(c)]
-        ])
+        return matrix_y(a).dot(matrix_z(b)).dot(matrix_y(c))
     elif convention == "yxy":
-        return np.array([
-            [math.cos(a) * math.cos(c) - math.cos(b) * math.sin(a) * math.sin(c), math.sin(a) * math.sin(b),
-             math.cos(a) * math.sin(c) + math.cos(b) * math.cos(c) * math.sin(a)],
-            [math.sin(b) * math.sin(c), math.cos(b), -math.cos(c) * math.sin(b)],
-            [-math.cos(c) * math.sin(a) - math.cos(a) * math.cos(b) * math.sin(c), math.cos(a) * math.sin(b),
-             math.cos(a) * math.cos(b) * math.cos(c) - math.sin(a) * math.sin(c)]
-        ])
-    elif convention == "xyx":
-        return np.array([
-            [math.cos(b), math.sin(b) * math.sin(c), math.cos(c) * math.sin(b)],
-            [math.sin(a) * math.sin(b), math.cos(a) * math.cos(c) - math.cos(b) * math.sin(a) * math.sin(c),
-             -math.cos(a) * math.sin(c) - math.cos(b) * math.cos(c) * math.sin(a)],
-            [-math.cos(a) * math.sin(b), math.cos(c) * math.sin(a) + math.cos(a) * math.cos(b) * math.sin(c),
-             math.cos(a) * math.cos(b) * math.cos(c) - math.sin(a) * math.sin(c)]
-        ])
+        return matrix_y(a).dot(matrix_x(b)).dot(matrix_y(c))
     elif convention == "xzx":
-        return np.array([
-            [math.cos(b), -math.cos(c) * math.sin(b), math.sin(b) * math.sin(c)],
-            [math.cos(a) * math.sin(b), math.cos(a) * math.cos(b) * math.cos(c) - math.sin(a) * math.sin(c),
-             -math.cos(c) * math.sin(a) - math.cos(a) * math.cos(b) * math.sin(c)],
-            [math.sin(a) * math.sin(b), math.cos(a) * math.sin(c) + math.cos(b) * math.cos(c) * math.sin(a),
-             math.cos(a) * math.cos(c) - math.cos(b) * math.sin(a) * math.sin(c)]
-        ])
+        return matrix_x(a).dot(matrix_z(b)).dot(matrix_x(c))
+    elif convention == "xyx":
+        return matrix_x(a).dot(matrix_y(b)).dot(matrix_x(c))
+    else:
+        print("convention not supported")
+
     return
 
 
@@ -131,26 +121,15 @@ def combine_data(args):
 
 def main():
     # Argparse
-    # fixme: global
-    global flag_compress
     parser = argparse.ArgumentParser(
-        description="output a single file that contains transformation data and voxel data. Default voxel data is zlib compressed")
+        description="output a single file that contains transformation data and voxel data. Default voxel data is "
+                    "zlib compressed")
     parser.add_argument("-e", "--em", metavar="", required=True, help="the Dynamo .em file.")
     parser.add_argument("-t", "--tbl", metavar="", required=True, help="the Dynamo .tbl file")
     parser.add_argument("-o", "--output", metavar="", required=True, help="the output file name (.txt)")
-    # Add compression flag - mutually exclusive group
-    # group = parser.add_mutually_exclusive_group(required=True)
     parser.add_argument("-c", "--compress", default=False, action="store_true",
                         help="Compress the voxel data [default: False]")
-    # group.add_argument("-nc", "--not_compress", action="store_true", help="Voxel data not compressed, in ascii encoded string")
     args = parser.parse_args()
-
-    # if args.compress:
-    #     flag_compress = True
-    # Output data with compressed raw_data, in binary
-    # elif args.not_compress:
-    #     flag_compress = False
-    # Output data in full ascii encoded data/string
 
     if not os.path.exists(args.em):
         raise ValueError(f"file '{args.em} does not exist")
