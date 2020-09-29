@@ -129,11 +129,11 @@ def combine_data(args):
             transformation_string = ""
 
             # rotation in zxz convention; rotation angle in the corresponding order: a, b, c.
-            a, b, c = float(line[6]), float(line[7]), float(line[8])
+            a, b, c = math.radians(float(line[6])), math.radians(float(line[7])), math.radians(float(line[8]))
             # Call the function
             rotation = rotate(a, b, c)
 
-            flag = 3
+            flag = 23
             for row in rotation:
                 rotation_string = ""
                 for each in row:
