@@ -58,8 +58,8 @@ https://wiki.dynamo.biozentrum.unibas.ch/w/index.php/Table_convention
 # Define rotation matrices (anticlockwise)
 def matrix_z(theta):
     matrix = np.array([
-        [math.cos(theta), -math.sin(theta), 0],
-        [math.sin(theta), math.cos(theta), 0],
+        [math.cos(theta), math.sin(theta), 0],
+        [-math.sin(theta), math.cos(theta), 0],
         [0, 0, 1]
     ])
     return matrix
@@ -67,9 +67,9 @@ def matrix_z(theta):
 
 def matrix_y(theta):
     matrix = np.array([
-        [math.cos(theta), 0, math.sin(theta)],
+        [math.cos(theta), 0, -math.sin(theta)],
         [0, 1, 0],
-        [-math.sin(theta), 0, math.cos(theta)]
+        [math.sin(theta), 0, math.cos(theta)]
     ])
     return matrix
 
@@ -77,8 +77,8 @@ def matrix_y(theta):
 def matrix_x(theta):
     matrix = np.array([
         [1, 0, 0],
-        [0, math.cos(theta), -math.sin(theta)],
-        [0, math.sin(theta), math.cos(theta)]
+        [0, math.cos(theta), math.sin(theta)],
+        [0, -math.sin(theta), math.cos(theta)]
     ])
     return matrix
 
@@ -119,13 +119,15 @@ def combine_data(args):
     ns
     volume_data (in string)
     """
+    vs = 5.43
     with mrcfile.open(args.map_file) as mrc:
         header = mrc.header
 
-        nxstart = float(header.nxstart)
-        nystart = float(header.nystart)
-        nzstart = float(header.nzstart)
+        nxstart = float(header.nxstart) * vs
+        nystart = float(header.nystart) * vs
+        nzstart = float(header.nzstart) * vs
         start_list = [nxstart, nystart, nzstart]
+        print(f"start_list: {start_list}")
 
         # Print nxstart, nystart and nzstart of the original .map file
         if args.map_start:
@@ -133,6 +135,7 @@ def combine_data(args):
             print("nystart: " + str(header.nystart))
             print("nzstart: " + str(header.nzstart))
 
+    print(f"vs = {vs}")
     with open(args.tbl, "rt") as tbl:
         # Create a list that contains all the transformations,
         # and each transformation is treated as an element in the list
@@ -142,6 +145,8 @@ def combine_data(args):
         for line in tbl:
             line = str(line).split(" ")
             transformation_string = ""
+
+            ds = [float(line[3]), float(line[4]), float(line[5])]
 
             # rotation in zxz convention; rotation angle in the corresponding order: a, b, c.
             a, b, c = math.radians(float(line[6])), math.radians(float(line[7])), math.radians(float(line[8]))
@@ -153,9 +158,9 @@ def combine_data(args):
             for row in rotation:
                 rotation_string = ""
                 for each in row:
-                    rotation_string += (str(each) + "\t")
-                translation = float(line[flag]) + start_list[s_flag]
-                transformation = rotation_string + str(translation) + "\t"
+                    rotation_string += (str(each) + ",")
+                translation = float(line[flag]) * vs + start_list[s_flag] + ds[s_flag] #* vs + 20 * vs
+                transformation = rotation_string + str(translation) + ","
                 transformation_string += transformation
                 flag += 1
                 s_flag += 1
@@ -167,7 +172,9 @@ def combine_data(args):
     em = voxel.EM(args.em)
     with open(f"{args.output}.txt", "w+") as file:
         for i in range(length):
-            file.write("Tag, transformation:" + "\t" + str(i + 1) + "\t" + transformation_set[i] + "\n")
+            # fixme: make sure that transformation_set[i] does not have \t at the end
+            line_to_write = str(i + 1) + "," + transformation_set[i][:-1] + ",0,0,0,1\n"
+            file.write(line_to_write)
 
         file.write("Mode:" + "\t" + str(em.mode) + "\n")
         file.write("Nc:" + "\t" + str(em.nc) + "\n")
@@ -195,8 +202,13 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="output a single file that contains transformation data and voxel data. Default voxel data is "
                     "zlib compressed")
+    # todo: consider replacing -e and -t so we run as so: python combine_modules.py <file_root>
+    #   in this way we assume that <file_root>.em and <file_root>.tbl exist
+    #   q.v. positional_arguments https://docs.python.org/3/library/argparse.html#name-or-flags
     parser.add_argument("-e", "--em", metavar="", required=True, help="the Dynamo .em file.")
     parser.add_argument("-t", "--tbl", metavar="", required=True, help="the Dynamo .tbl file")
+    # todo: have a default output unless explicitly specified e.g. output = <file_root>.txt unless provided explicitly
+    #  e.g. python combine_modules.py <file_root> -o <something_else> will produce <something_else>.txt instead
     parser.add_argument("-o", "--output", metavar="", required=True, help="the output file name (.txt)")
     parser.add_argument("-c", "--compress", default=False, action="store_true",
                         help="Compress the voxel data [default: False]")
