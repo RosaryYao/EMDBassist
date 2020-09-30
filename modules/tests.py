@@ -5,6 +5,7 @@ import argparse
 import sys
 # trick: use shlex to parse commands
 import shlex
+import mrcfile
 
 import voxel_dynamo as voxel
 from combine_modules import rotate, parse_args
@@ -19,25 +20,17 @@ from combine_modules import rotate, parse_args
 
 
 class EMDBassist(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        pass
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        pass
 
     def setUp(self) -> None:
-        # initialise before each test is run
-        sys.argv = shlex.split("combine_modules.py -e a.em -t a.tbl -o rm")
-        args = parse_args()
-        self.filename = args.em
-        self.tbl = args.tbl
-
+        self.filename = "emd_1305_a.em"
+        self.tbl = "emd_1305_averaged.tbl"
         self.em = voxel.EM(self.filename)
         self.a, self.b, self.c = math.radians(90), math.radians(90), math.radians(90)
         self.dot = np.array([[1], [0], [0]])
         self.dot2 = np.array([[-1], [-1], [0]])
+        self.output = "emd_1305.txt"
+        with mrcfile.open("emd_1305.map") as mrc:
+            self.map_header = mrc.header
 
     def tearDown(self) -> None:
         print('test finished!')
@@ -45,7 +38,7 @@ class EMDBassist(unittest.TestCase):
     # todo: consider removing this test?
     def test_filename(self):
         """Tests to ensure the filename attribute exists and is correct"""
-        self.assertEqual(self.em.filename, 'a.em')
+        self.assertEqual(self.em.filename, 'emd_1305_a.em')
 
     def test_dy_mode(self):
         """Tests to ensure only desired modes exist"""
@@ -116,7 +109,34 @@ class EMDBassist(unittest.TestCase):
 
     def test_transformation(self):
         # todo: check that the matrix in the output txt has shape 3*4, and corresponds to the correct order?
-        self.assertTrue(True)
+        # todo: to check the translation is correct - have map start coordinates added
+        # tbl_transformation + map_start = real_transformation/output_transformation
+
+        real_transformation = []
+        output_transformation = []
+
+        with open(self.tbl, "r") as tbl:
+            x = float(self.map_header.nxstart)
+            y = float(self.map_header.nystart)
+            z = float(self.map_header.nzstart)
+            for line in tbl:
+                line = str(line).split(" ")
+                real_transformation.append([str(float(line[23])+x), str(float(line[24])+y), str(float(line[25])+z)])
+
+
+        with open(self.output, "r") as output:
+            for line in output:
+                if line[0] == "T":
+                    data = shlex.split(line)[3::]
+                    output_transformation.append([data[3], data[7], data[11]])
+
+        self.assertEqual(len(data), 12)
+        self.assertEqual(len(real_transformation), 20)
+        self.assertEqual(len(output_transformation), 20)
+        self.assertEqual(real_transformation, output_transformation)
+
+
+
 
 
 if __name__ == "__main__":
@@ -126,4 +146,4 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--tbl", metavar="", required=True, help="the Dynamo .tbl file")
     args = parser.parse_args()
     unittest.main(args)
-    # todo: error here - unknown arguments -e -t.
+
