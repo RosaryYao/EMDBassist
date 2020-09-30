@@ -2,6 +2,7 @@ import argparse
 import math
 import os
 import sys
+import mrcfile
 
 import numpy as np
 import voxel_dynamo as voxel
@@ -118,6 +119,20 @@ def combine_data(args):
     ns
     volume_data (in string)
     """
+    with mrcfile.open(args.map_file) as mrc:
+        header = mrc.header
+
+        nxstart = float(header.nxstart)
+        nystart = float(header.nystart)
+        nzstart = float(header.nzstart)
+        start_list = [nxstart, nystart, nzstart]
+
+        # Print nxstart, nystart and nzstart of the original .map file
+        if args.map_start:
+            print("nxstart: " + str(header.nxstart))
+            print("nystart: " + str(header.nystart))
+            print("nzstart: " + str(header.nzstart))
+
     with open(args.tbl, "rt") as tbl:
         # Create a list that contains all the transformations,
         # and each transformation is treated as an element in the list
@@ -134,13 +149,16 @@ def combine_data(args):
             rotation = rotate(a, b, c)
 
             flag = 23
+            s_flag = 0
             for row in rotation:
                 rotation_string = ""
                 for each in row:
                     rotation_string += (str(each) + "\t")
-                transformation = rotation_string + line[flag] + "\t"
+                translation = float(line[flag]) + start_list[s_flag]
+                transformation = rotation_string + str(translation) + "\t"
                 transformation_string += transformation
                 flag += 1
+                s_flag += 1
 
             transformation_set.append(transformation_string)
             length += 1
@@ -165,13 +183,11 @@ def combine_data(args):
             file.write(f"Data:\t{em.volume_encoded.decode('utf-8')}")
             print(f"{args.output}.txt" + " is created.")
 
-    """
-    print(em.volume_array.shape)
-    import mrcfile
+    print("Volume shape: " + str(em.volume_array.shape))
+
     with mrcfile.new(f"{args.output}.mrc", overwrite=True) as m:
         m.set_data(em.volume_array)
         m.voxel_size = 5.43
-    """
 
 
 def parse_args():
@@ -184,6 +200,9 @@ def parse_args():
     parser.add_argument("-o", "--output", metavar="", required=True, help="the output file name (.txt)")
     parser.add_argument("-c", "--compress", default=False, action="store_true",
                         help="Compress the voxel data [default: False]")
+    parser.add_argument("-m", "--map-file", metavar="", help="The original .map file")
+    parser.add_argument("-s", "--map-start", default=False, action="store_true",
+                        help="Print the nxstart, nystart, nzstart of the original .map file")
     args = parser.parse_args()
     return args
 
@@ -202,5 +221,5 @@ def main():
 
 # only run main if this script is being executed
 if __name__ == "__main__":
-    print(sys.argv)
+    # print(sys.argv)
     sys.exit(main())
