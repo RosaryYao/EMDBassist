@@ -244,7 +244,7 @@ def combine_data(args):
             print('uncompressed')
             file.write(f"Data:\t{em.volume_encoded.decode('utf-8')}")
             output_flag = 1
-
+                       
     if args.output != "":
         os.rename(rf"{args.data}_output.txt", rf"{args.output}.txt")
         output_flag = 2
