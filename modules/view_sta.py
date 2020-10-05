@@ -345,10 +345,10 @@ def main():
     # NOTE: if colour is six chars then opacity = 1.0 i.e. opaque
     #   if colour is 8 chars then last two define opacity e.g. #ff000000 -> opacity = 0
     #   each pair of chars can have values in 00-ff (hexadecimal)
-    sta = STA(args.input_file, '#00ffff', args)
+    sta = STA(args.input_file, '#00ffff', args) # R: light blue => the "untransformed" averaged file
     volumes_to_display += [sta]
     # the list of transformed volumes
-    transformed_stas = sta.transformed_stas(colour="#ff0000")
+    transformed_stas = sta.transformed_stas(colour="#ff0000") # R: Color Red
     volumes_to_display += transformed_stas
     # the original map
     if args.map_file:
