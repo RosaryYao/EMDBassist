@@ -124,6 +124,12 @@ def combine_data(args):
     ## Also assume output start has the same root unless stated
     # file_root = os.path.splitext(args.em)[0]
 
+    """
+    todo: replace all below with something like this
+    map_obj = MAP(args.map_file)
+    map_obj.nxstart ...
+    map_obj.voxel_size_x ...
+    """
     with mrcfile.open(args.map_file) as mrc:
         header = mrc.header
         voxel_size = mrc.voxel_size
@@ -148,10 +154,33 @@ def combine_data(args):
     print(f"vz = {vz}")
 
     # Consider box size - half of the volume shape
+    """
+    todo: use the em object for attributes
+    """
+    # fixme: add args to voxel.EM
     em = voxel.EM(f"{args.data}.em")
+    # fixme: no need to create a new variable
     volume_shape = em.volume_array.shape  # This is a tuple
     print("Volume shape: " + str(volume_shape))
 
+    """
+    todo: create a class that handles .tbl files just as with .em files
+    # class for the file
+    tbl = TBL('file.tbl', args)
+    len(tbl) # number of particles
+    
+    #for each row we also need a class
+    class TBLRow:
+        pass
+        
+    tbl_row = tbl[1] # returns a TBLRow object with tag = 1 
+    # attributes with names according to Dynamo e.g. 
+    tbl_row.tdrot
+    tbl_row.tilt
+    tbl_row.narot
+    # method on TBLRow
+    tbl_row.transform #property -> 4x4 matrix
+    """
     with open(f"{args.data}.tbl", "rt") as tbl:
         # Create a list that contains all the transformations,
         # and each transformation is treated as an element in the list
@@ -194,6 +223,8 @@ def combine_data(args):
 
     # Output the final text file
 
+    # todo: create a function for output
+    # write_output(args)
     with open(f"{args.data}_output.txt", "w+") as file:
         for i in range(length):
             # fixme: make sure that transformation_set[i] does not have \t at the end
@@ -213,7 +244,7 @@ def combine_data(args):
             print('uncompressed')
             file.write(f"Data:\t{em.volume_encoded.decode('utf-8')}")
             output_flag = 1
-
+                       
     if args.output != "":
         os.rename(rf"{args.data}_output.txt", rf"{args.output}.txt")
         output_flag = 2
@@ -223,6 +254,7 @@ def combine_data(args):
     else:
         print(f"{args.data}_output.txt" + " is created.")
 
+    # todo: create a function to write out mrc
     with mrcfile.new(f"{args.data}.mrc", overwrite=True) as m:
         m.set_data(em.volume_array)
         m.voxel_size = 5.43
