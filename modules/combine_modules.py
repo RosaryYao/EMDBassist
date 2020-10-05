@@ -119,13 +119,21 @@ def combine_data(args):
     ns
     volume_data (in string)
     """
-    vs = 5.43
+
+    ## Define <file_root> - if .tbl and .em has the same file_root.
+    ## Also assume output start has the same root unless stated
+    # file_root = os.path.splitext(args.em)[0]
+
     with mrcfile.open(args.map_file) as mrc:
         header = mrc.header
+        voxel_size = mrc.voxel_size
+        vx = voxel_size.x
+        vy = voxel_size.y
+        vz = voxel_size.z
 
-        nxstart = float(header.nxstart) * vs
-        nystart = float(header.nystart) * vs
-        nzstart = float(header.nzstart) * vs
+        nxstart = float(header.nxstart)
+        nystart = float(header.nystart)
+        nzstart = float(header.nzstart)
         start_list = [nxstart, nystart, nzstart]
         print(f"start_list: {start_list}")
 
@@ -135,8 +143,16 @@ def combine_data(args):
             print("nystart: " + str(header.nystart))
             print("nzstart: " + str(header.nzstart))
 
-    print(f"vs = {vs}")
-    with open(args.tbl, "rt") as tbl:
+    print(f"vx = {vx}")
+    print(f"vy = {vy}")
+    print(f"vz = {vz}")
+
+    # Consider box size - half of the volume shape
+    em = voxel.EM(f"{args.data}.em")
+    volume_shape = em.volume_array.shape  # This is a tuple
+    print("Volume shape: " + str(volume_shape))
+
+    with open(f"{args.data}.tbl", "rt") as tbl:
         # Create a list that contains all the transformations,
         # and each transformation is treated as an element in the list
         transformation_set = []
@@ -146,20 +162,28 @@ def combine_data(args):
             line = str(line).split(" ")
             transformation_string = ""
 
-            ds = [float(line[3]), float(line[4]), float(line[5])]
+            ds = [float(line[3])*vx, float(line[4])*vy, float(line[5])*vz]
 
             # rotation in zxz convention; rotation angle in the corresponding order: a, b, c.
             a, b, c = math.radians(float(line[6])), math.radians(float(line[7])), math.radians(float(line[8]))
+            ## d = float(line[29])
+            ## a = math.radians(a + d)
             # Call the function
             rotation = rotate(a, b, c)
 
             flag = 23
             s_flag = 0
+
+            # todo: CHECK!!!!!
+            random_values = [5, 5, 5]
+            voxel_size_list = [vx, vy, vz]
             for row in rotation:
                 rotation_string = ""
                 for each in row:
                     rotation_string += (str(each) + ",")
-                translation = float(line[flag]) * vs + start_list[s_flag] + ds[s_flag] #* vs + 20 * vs
+                # *voxel_size_list[s_flag]
+                #
+                translation = (float(line[flag]) + float(start_list[s_flag]) + ds[s_flag]-volume_shape[s_flag]/2) * voxel_size_list[s_flag]
                 transformation = rotation_string + str(translation) + ","
                 transformation_string += transformation
                 flag += 1
@@ -169,8 +193,8 @@ def combine_data(args):
             length += 1
 
     # Output the final text file
-    em = voxel.EM(args.em)
-    with open(f"{args.output}.txt", "w+") as file:
+
+    with open(f"{args.data}_output.txt", "w+") as file:
         for i in range(length):
             # fixme: make sure that transformation_set[i] does not have \t at the end
             line_to_write = str(i + 1) + "," + transformation_set[i][:-1] + ",0,0,0,1\n"
@@ -181,18 +205,25 @@ def combine_data(args):
         file.write("Nr:" + "\t" + str(em.nr) + "\n")
         file.write("Ns:" + "\t" + str(em.ns) + "\n")
 
+        output_flag = 0
         if args.compress:
             print('compressed')
             file.write(f"Data:\t{em.volume_encoded_compressed.decode('utf-8')}")
-            print(f"{args.output}_compressed.txt" + " is created.")
         else:
             print('uncompressed')
             file.write(f"Data:\t{em.volume_encoded.decode('utf-8')}")
-            print(f"{args.output}.txt" + " is created.")
+            output_flag = 1
 
-    print("Volume shape: " + str(em.volume_array.shape))
+    if args.output != "":
+        os.rename(rf"{args.data}_output.txt", rf"{args.output}.txt")
+        output_flag = 2
 
-    with mrcfile.new(f"{args.output}.mrc", overwrite=True) as m:
+    if output_flag == 2:
+        print(f"{args.output}.txt" + " is created.")
+    else:
+        print(f"{args.data}_output.txt" + " is created.")
+
+    with mrcfile.new(f"{args.data}.mrc", overwrite=True) as m:
         m.set_data(em.volume_array)
         m.voxel_size = 5.43
 
@@ -202,30 +233,25 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="output a single file that contains transformation data and voxel data. Default voxel data is "
                     "zlib compressed")
-    # todo: consider replacing -e and -t so we run as so: python combine_modules.py <file_root>
-    #   in this way we assume that <file_root>.em and <file_root>.tbl exist
-    #   q.v. positional_arguments https://docs.python.org/3/library/argparse.html#name-or-flags
-    parser.add_argument("-e", "--em", metavar="", required=True, help="the Dynamo .em file.")
-    parser.add_argument("-t", "--tbl", metavar="", required=True, help="the Dynamo .tbl file")
-    # todo: have a default output unless explicitly specified e.g. output = <file_root>.txt unless provided explicitly
-    #  e.g. python combine_modules.py <file_root> -o <something_else> will produce <something_else>.txt instead
-    parser.add_argument("-o", "--output", metavar="", required=True, help="the output file name (.txt)")
+    parser.add_argument("-d", "--data", metavar="", required=True, help="the Dynamo .em and .tbl file.")
+    # parser.add_argument("-t", "--tbl", default=False, action="store_true", help="the Dynamo .tbl file")
+    parser.add_argument("-o", "--output", default="", help="the output file name (.txt)")
     parser.add_argument("-c", "--compress", default=False, action="store_true",
                         help="Compress the voxel data [default: False]")
     parser.add_argument("-m", "--map-file", metavar="", help="The original .map file")
     parser.add_argument("-s", "--map-start", default=False, action="store_true",
                         help="Print the nxstart, nystart, nzstart of the original .map file")
-    args = parser.parse_args()
+    args, unknown = parser.parse_known_args()
     return args
 
 
 def main():
     args = parse_args()
 
-    if not os.path.exists(args.em):
-        raise ValueError(f"file '{args.em} does not exist")
-    if not os.path.exists(args.tbl):
-        raise ValueError(f"file '{args.tbl} does not exist")
+    if not os.path.exists(f"{args.data}.em"):
+        raise ValueError(f"file '{args.data}.em does not exist")
+    if not os.path.exists(f"{args.data}.tbl"):
+        raise ValueError(f"file '{args.data}.tbl does not exist")
 
     combine_data(args)
     return 0
