@@ -352,7 +352,7 @@ def main():
     volumes_to_display += transformed_stas
     # the original map
     if args.map_file:
-        map = MAP(args.map_file, '#ffff00', args)
+        map = MAP(args.map_file, '#ffff0005', args)
         volumes_to_display += [map]
     display(volumes_to_display, args)
     return os.EX_OK
