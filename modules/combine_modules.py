@@ -1,8 +1,10 @@
 import argparse
+import base64
 import math
 import os
 import sys
 import mrcfile
+import struct
 
 import numpy as np
 import voxel_dynamo as voxel
@@ -10,6 +12,7 @@ import voxel_dynamo as voxel
 """
 .tbl field values (1-based index)
 https://wiki.dynamo.biozentrum.unibas.ch/w/index.php/Table_convention
+
 1  : tag tag of particle file in data folder
 2  : aligned value 1: marks the particle for alignment
 3  : averaged value 1: the particle was included in the average
@@ -48,6 +51,9 @@ https://wiki.dynamo.biozentrum.unibas.ch/w/index.php/Table_convention
 37  : def defocus (in micron)
 41  : eig1 "eigencoefficient" #1
 42  : eig2 "eigencoefficient" #2
+
+
+
 """
 
 
@@ -116,134 +122,176 @@ def combine_data(args):
     volume_data (in string)
     """
 
-    ## Define <file_root> - if .tbl and .em has the same file_root.
-    ## Also assume output start has the same root unless stated
-    # file_root = os.path.splitext(args.em)[0]
 
+class Map:
+    def __init__(self, fn):
+        self.fn = fn
+        self.mode, self.cols, self.rows, self.sections, self.data, self.origin, self.voxel_size = self._get_data(fn)
+
+    def _get_data(self, fn):
+        with mrcfile.open(fn) as mrc:
+            mode = mrc.header.mode
+            cols = mrc.header.nx
+            rows = mrc.header.ny
+            sections = mrc.header.nz
+            origin = mrc.header.nxstart, mrc.header.nystart, mrc.header.nzstart
+            voxel_size = mrc.voxel_size  # Would be a tuple?
+            data = mrc.data
+        return mode, cols, rows, sections, data, origin, voxel_size
+
+
+class Tbl:
+    def __init__(self, fn):
+        self.fn = fn
+        self.col, self.length, self.tbl_rows = self._get_data(fn)
+        # Define a list of tbl_row
+
+    def _get_data(self, fn):
+        with open(fn, "r") as f:
+            row_data = f.readlines()
+            col_data = [row.strip().split(" ") for row in row_data]
+            try:
+                length_row = [len(row) for row in col_data]
+                assert sum(length_row) / len(length_row) == length_row[0]
+            except AssertionError:
+                raise ValueError("Number of columns are not equal on all rows!")
+        return len(col_data[0]), len(row_data), col_data
+
+    def __setitem__(self, index, tbl_row):
+        self.rows[index] = tbl_row
+
+    def __getitem__(self, index):
+        return self.tbl_rows[index]
+
+
+class TblRow:
+    def __init__(self, tbl_row):
+        self.row = tbl_row
+        # change each element in the tbl_row into float
+        self.dx, self.dy, self.dz, self.tdrot, self.tilt, self.narot, self.x, self.y, self.z = self._get_data(tbl_row)
+        self.transformation = self._transform()
+
+    def _get_data(self, tbl_row):
+        dx, dy, dz = float(self.row[3]), float(self.row[4]), float(self.row[5])
+        tdrot, tilt, narot = float(self.row[6]), float(self.row[7]), float(self.row[8])
+        x, y, z = float(self.row[23]), float(self.row[24]), float(self.row[25])
+        return dx, dy, dz, tdrot, tilt, narot, x, y, z
+
+    def _transform(self):
+        rotation = rotate(self.tdrot, self.tilt, self.narot)
+        transformation = np.insert(rotation, 3, [self.x + self.dx, self.y + self.dy, self.z + self.dz], axis=1)
+        return transformation
+
+
+class EM:
     """
-    todo: replace all below with something like this
-    map_obj = MAP(args.map_file)
-    map_obj.nxstart ...
-    map_obj.voxel_size_x ...
+    Dynamo produces subtomogram averaging volume data in .em format and stores binary data.
+    See EMDB_mapFormat MODE at http://ftp.ebi.ac.uk/pub/databases/emdb/doc/Map-format/current/EMDB_map_format.pdf,
+    After unpacking, the first number indicates the type of data. It is then followed by 3 numbers, denoting the numbers of columns, rows and sections.
+    The rest is volume data.
     """
-    with mrcfile.open(args.map_file) as mrc:
-        header = mrc.header
-        voxel_size = mrc.voxel_size
-        vx = voxel_size.x
-        vy = voxel_size.y
-        vz = voxel_size.z
 
-        nxstart = float(header.nxstart)
-        nystart = float(header.nystart)
-        nzstart = float(header.nzstart)
-        start_list = [nxstart, nystart, nzstart]
-        print(f"start_list: {start_list}")
+    def __init__(self, filename):
+        self.filename = filename
 
-        # Print nxstart, nystart and nzstart of the original .map file
-        if args.map_start:
-            print("nxstart: " + str(header.nxstart))
-            print("nystart: " + str(header.nystart))
-            print("nzstart: " + str(header.nzstart))
+        with open(self.filename, 'rb') as em:
+            # the header is 128 words = 512 bytes. np.dtype = "int32" (long integer)
+            # we read the first 4 words (word = 4 bytes)
+            self.dynamo_header = struct.unpack('128i', em.read(128 * 4))
+            # determine the MODE
+            self.dy_mode = int(hex(self.dynamo_header[0])[2])
+            if self.dy_mode == 2:  # int16, short int
+                self.mode = 1
+                type_flag = "h"
+            elif self.dy_mode == 4:  # int32, int
+                self.mode = 3
+                type_flag = "i"
+            elif self.dy_mode == 5:  # float32
+                self.mode = 2
+                type_flag = "f"
+            elif self.dy_mode == 9:  # float64
+                self.mode = 4
+                type_flag = "d"
+            else:
+                raise Exception("data not supported yet!")
 
-    print(f"vx = {vx}")
-    print(f"vy = {vy}")
-    print(f"vz = {vz}")
+            # pick the col, row, sect values
+            self.nc, self.nr, self.ns = self.dynamo_header[1:4]
+            # then we read the data
+            self.raw_data = em.read()
+            self.volume_data = struct.unpack(f'{self.nc * self.nr * self.ns}{type_flag}', self.raw_data)
 
-    # Consider box size - half of the volume shape
-    """
-    todo: use the em object for attributes
-    """
-    # fixme: add args to voxel.EM
-    em = voxel.EM(f"{args.data}.em")
-    # fixme: no need to create a     new variable
-    volume_shape = em.volume_array.shape  # This is a tuple
-    print("Volume shape: " + str(volume_shape))
+    @property
+    def volume_encoded(self):
+        return base64.b64encode(self.raw_data)
 
-    """
-    todo: create a class that handles .tbl files just as with .em files
-    # class for the file
-    tbl = TBL('file.tbl', args)
-    len(tbl) # number of particles
+    @property
+    def volume_compressed(self):
+        import zlib
+        return zlib.compress(self.raw_data)
 
-    #for each row we also need a class
-    class TBLRow:
-        pass
+    @property
+    def volume_encoded_compressed(self):
+        return base64.b64encode(self.volume_compressed)
 
-    tbl_row = tbl[1] # returns a TBLRow object with tag = 1 
-    # attributes with names according to Dynamo e.g. 
-    tbl_row.tdrot
-    tbl_row.tilt
-    tbl_row.narot
-    # method on TBLRow
-    tbl_row.transform #property -> 4x4 matrix
-    """
-    with open(f"{args.data}.tbl", "rt") as tbl:
-        # Create a list that contains all the transformations,
-        # and each transformation is treated as an element in the list
-        transformation_set = []
-        length = 0
+    @property
+    def volume_array(self):
+        import numpy
+        return numpy.array(self.volume_data, dtype=numpy.float32).reshape(self.nc, self.nr, self.ns)
 
-        for line in tbl:
-            line = str(line).split(" ")
-            transformation_string = ""
 
-            ds = [float(line[3]) * vx, float(line[4]) * vy, float(line[5]) * vz]
+def output_txt():
+    args = parse_args()
 
-            # rotation in zxz convention; rotation angle in the corresponding order: a, b, c.
-            a, b, c = math.radians(float(line[6])), math.radians(float(line[7])), math.radians(float(line[8]))
-            ## d = float(line[29])
-            ## a = math.radians(a + d)
-            # Call the function
-            rotation = rotate(a, b, c)
+    # Map information
+    map = Map(args.map_file)
+    map_origin = map.origin
+    map_voxel_size = map.voxel_size
 
-            flag = 23
-            s_flag = 0
+    # Tbl transformation
+    tbl = Tbl(f"{args.data}.tbl")
+    origin_m = np.array(
+        [[0, 0, 0, map_origin[0]], [0, 0, 0, map_origin[1]], [0, 0, 0, map_origin[2]]])
 
-            # todo: CHECK!!!!!
-            random_values = [5, 5, 5]
-            voxel_size_list = [vx, vy, vz]
-            for row in rotation:
-                rotation_string = ""
-                for each in row:
-                    rotation_string += (str(each) + ",")
-                # *voxel_size_list[s_flag]
-                #
-                translation = (float(line[flag]) + float(start_list[s_flag]) + ds[s_flag] - volume_shape[s_flag] / 2) * \
-                              voxel_size_list[s_flag]
-                transformation = rotation_string + str(translation) + ","
-                transformation_string += transformation
-                flag += 1
-                s_flag += 1
+    # .em data shape
+    em = EM(f"{args.data}.em")
+    box = em.volume_array.shape
+    # Subtract half of the box_length
+    half_box_m = np.array(
+        [[0, 0, 0, (1 / 2) * box[0]], [0, 0, 0, (1 / 2) * box[1]], [0, 0, 0, (1 / 2) * box[2]]])
 
-            transformation_set.append(transformation_string)
-            length += 1
+    # A list contains the transformation of all particles
+    transformations = []
+    for i in range(tbl.length):
+        tbl_row = TblRow(tbl[i])
+        tbl_m = tbl_row.transformation
+        transform_m = tbl_m + origin_m - half_box_m
+        transformations.append(transform_m.tolist())
 
-    # Output the final text file
+    # Output the text file
+    with open(f"{args.data}_transformation.txt", "w") as f:
+        for i in range(tbl.length):
+            line_to_write = str(i + 1) + "," \
+                            + "".join(str(f"{e},").replace("[", "").replace("]", "").replace(" ","") for e in transformations[i]) \
+                            + "0,0,0,1\n"
+            f.write(line_to_write)
 
-    # todo: create a function for output
-    # write_output(args)
-    with open(f"{args.data}_output.txt", "w+") as file:
-        for i in range(length):
-            # fixme: make sure that transformation_set[i] does not have \t at the end
-            line_to_write = str(i + 1) + "," + transformation_set[i][:-1] + ",0,0,0,1\n"
-            file.write(line_to_write)
-
-        file.write("Mode:" + "\t" + str(em.mode) + "\n")
-        file.write("Nc:" + "\t" + str(em.nc) + "\n")
-        file.write("Nr:" + "\t" + str(em.nr) + "\n")
-        file.write("Ns:" + "\t" + str(em.ns) + "\n")
+        f.write("Mode:" + "\t" + str(em.mode) + "\n")
+        f.write("Nc:" + "\t" + str(em.nc) + "\n")
+        f.write("Nr:" + "\t" + str(em.nr) + "\n")
+        f.write("Ns:" + "\t" + str(em.ns) + "\n")
 
         output_flag = 0
         if args.compress:
             print('compressed')
-            file.write(f"Data:\t{em.volume_encoded_compressed.decode('utf-8')}")
+            f.write(f"Data:\t{em.volume_encoded_compressed.decode('utf-8')}")
         else:
             print('uncompressed')
-            file.write(f"Data:\t{em.volume_encoded.decode('utf-8')}")
+            f.write(f"Data:\t{em.volume_encoded.decode('utf-8')}")
             output_flag = 1
 
-    if args.output != "":
-        os.rename(rf"{args.data}_output.txt", rf"{args.output}.txt")
+    if args.output:
+        os.rename(rf"{args.data}_transformation.txt", rf"{args.output}.txt")
         output_flag = 2
 
     if output_flag == 2:
@@ -251,10 +299,10 @@ def combine_data(args):
     else:
         print(f"{args.data}_output.txt" + " is created.")
 
-    # todo: create a function to write out mrc
-    with mrcfile.new(f"{args.data}.mrc", overwrite=True) as m:
-        m.set_data(em.volume_array)
-        m.voxel_size = 5.43
+    if args.map_start:
+        print("nxstart: " + str(map.origin[0]))
+        print("nystart: " + str(map.origin[1]))
+        print("nzstart: " + str(map.origin[2]))
 
 
 def parse_args():
@@ -264,7 +312,7 @@ def parse_args():
                     "zlib compressed")
     parser.add_argument("-d", "--data", metavar="", required=True, help="the Dynamo .em and .tbl file.")
     # parser.add_argument("-t", "--tbl", default=False, action="store_true", help="the Dynamo .tbl file")
-    parser.add_argument("-o", "--output", default="", help="the output file name (.txt)")
+    parser.add_argument("-o", "--output", help="the output file name (.txt)")
     parser.add_argument("-c", "--compress", default=False, action="store_true",
                         help="Compress the voxel data [default: False]")
     parser.add_argument("-m", "--map-file", metavar="", help="The original .map file")
@@ -282,7 +330,7 @@ def main():
     if not os.path.exists(f"{args.data}.tbl"):
         raise ValueError(f"file '{args.data}.tbl does not exist")
 
-    combine_data(args)
+    output_txt()
     return 0
 
 
