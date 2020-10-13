@@ -1,14 +1,3 @@
-import argparse
-import base64
-import math
-import os
-import sys
-import mrcfile
-import struct
-
-import numpy as np
-import voxel_dynamo as voxel
-
 """
 .tbl field values (1-based index)
 https://wiki.dynamo.biozentrum.unibas.ch/w/index.php/Table_convention
@@ -51,10 +40,16 @@ https://wiki.dynamo.biozentrum.unibas.ch/w/index.php/Table_convention
 37  : def defocus (in micron)
 41  : eig1 "eigencoefficient" #1
 42  : eig2 "eigencoefficient" #2
-
-
-
 """
+import argparse
+import base64
+import math
+import os
+import struct
+import sys
+
+import mrcfile
+import numpy as np
 
 
 # Define rotation matrices (anticlockwise)
@@ -194,6 +189,7 @@ class EM:
     def __init__(self, filename):
         self.filename = filename
 
+        # todo: write a _get_data method
         with open(self.filename, 'rb') as em:
             # the header is 128 words = 512 bytes. np.dtype = "int32" (long integer)
             # we read the first 4 words (word = 4 bytes)
@@ -240,7 +236,7 @@ class EM:
         return numpy.array(self.volume_data, dtype=numpy.float32).reshape(self.nc, self.nr, self.ns)
 
 
-def output_txt():
+def create_output_files():
     args = parse_args()
 
     # Map information
@@ -272,7 +268,8 @@ def output_txt():
     with open(f"{args.data}_transformation.txt", "w") as f:
         for i in range(tbl.length):
             line_to_write = str(i + 1) + "," \
-                            + "".join(str(f"{e},").replace("[", "").replace("]", "").replace(" ","") for e in transformations[i]) \
+                            + "".join(
+                str(f"{e},").replace("[", "").replace("]", "").replace(" ", "") for e in transformations[i]) \
                             + "0,0,0,1\n"
             f.write(line_to_write)
 
@@ -330,7 +327,7 @@ def main():
     if not os.path.exists(f"{args.data}.tbl"):
         raise ValueError(f"file '{args.data}.tbl does not exist")
 
-    output_txt()
+    create_output_files()
     return 0
 
 
