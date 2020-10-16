@@ -7,8 +7,8 @@ import sys
 import shlex
 import mrcfile
 
-import voxel_dynamo as voxel
 import combine_modules as cm
+from combine_modules import Map, Tbl, TblRow, EM
 
 
 # we are inheriting the unittest.TestCase class
@@ -17,31 +17,19 @@ import combine_modules as cm
 # read more about TestCase https://docs.python.org/3/library/unittest.html#assert-methods
 # add a docstring so that on verbose test runs (python -m unittest tests -v) you can see what each test is about
 
-
-
+"""
 class EMDBassist(unittest.TestCase):
 
     def setUp(self) -> None:
-        self.filename = "emd_1305_averaged.em"
-        self.tbl = "emd_1305_averaged.tbl"
-        self.em = voxel.EM(self.filename)
         self.a, self.b, self.c = math.radians(90), math.radians(90), math.radians(90)
         self.dot = np.array([[1], [0], [0]])
         self.dot2 = np.array([[-1], [-1], [0]])
-        self.output = "rm_1305.txt"
-        with mrcfile.open("emd_1305.map") as mrc:
-            self.map_header = mrc.header
 
     def tearDown(self) -> None:
         print('test finished!')
 
-    # todo: consider removing this test?
-    def test_filename(self):
-        """Tests to ensure the filename attribute exists and is correct"""
-        self.assertEqual(self.em.filename, 'emd_1305_averaged.em')
-
     def test_dy_mode(self):
-        """Tests to ensure only desired modes exist"""
+        ### Tests to ensure only desired modes exist
         self.assertIsInstance(self.em.dy_mode, int)
         self.assertIn(self.em.dy_mode, [2, 4, 5, 9])
 
@@ -72,10 +60,10 @@ class EMDBassist(unittest.TestCase):
         self.assertTrue(np.allclose(vp, np.array([[1], [0], [0]])))
 
     def test_zxz(self):
-        """
-        Tests to ensure rotation matrices are correct.
-        Useful visualization: http://danceswithcode.net/engineeringnotes/rotations_in_3d/demo3D/rotations_in_3d_tool.html
-        """
+
+        ### Tests to ensure rotation matrices are correct.
+        ### Useful visualization: http://danceswithcode.net/engineeringnotes/rotations_in_3d/demo3D/rotations_in_3d_tool.html
+        
         rotate_zxz = cm.rotate(self.a, self.b, self.c, convention="zxz")
 
         final_dot = np.array([[0], [0], [1]])
@@ -86,7 +74,7 @@ class EMDBassist(unittest.TestCase):
         self.assertTrue(np.allclose(rotate_zxz.dot(self.dot2), final_dot2))
 
     def test_zyz(self):
-        """Check that zyz is calculated correctly"""
+        ###Check that zyz is calculated correctly
 
         rotate_zyz = cm.rotate(self.a, self.b, self.c, convention="zyz")
 
@@ -147,8 +135,8 @@ class EMDBassist(unittest.TestCase):
             z = float(self.map_header.nzstart)
             for line in tbl:
                 line = str(line).split(" ")
-                real_transformation.append([str(float(line[23])+x), str(float(line[24])+y), str(float(line[25])+z)])
-
+                real_transformation.append(
+                    [str(float(line[23]) + x), str(float(line[24]) + y), str(float(line[25]) + z)])
 
         with open(self.output, "r") as output:
             for line in output:
@@ -160,9 +148,115 @@ class EMDBassist(unittest.TestCase):
         self.assertEqual(len(real_transformation), 20)
         self.assertEqual(len(output_transformation), 20)
         self.assertEqual(real_transformation, output_transformation)
+"""
+
+class TestMap(unittest.TestCase):
+    def setUp(self) -> None:
+        self.fn = "emd_1305.map"
+        self.map = cm.Map(self.fn)
+        self.origin = self.map.origin
+
+    def tearDown(self) -> None:
+        print('test finished!')
+
+    def test_origin(self):
+        actual_origin = (-162, -162, -162)
+        self.assertEqual(actual_origin, self.origin)
+
+    def test_matrix(self):
+        origin_matrix = np.array([
+            [0, 0, 0, self.origin[0]], [0, 0, 0, self.origin[1]], [0, 0, 0, self.origin[2]]
+        ])
+        actual_o_matrix = np.array([
+            [0, 0, 0, -162], [0, 0, 0, -162], [0, 0, 0, -162]
+        ])
+        self.assertTrue(np.allclose(origin_matrix, actual_o_matrix))
+
+    def test_voxel_size(self):
+        self.voxel = self.map.voxel_size
+        voxel_size = (self.voxel.x, self.voxel.y, self.voxel.z)
+        self.assertEqual((np.float32(5.43), np.float32(5.43), np.float32(5.43)), voxel_size)
+
+    def test_mode(self):
+        self.assertEqual(self.map.mode, 2)
 
 
+class TestTblRow(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tblfn = "emd_1305_averaged.tbl"
+        self.tbl = Tbl(self.tblfn)
+        self.map = Map("emd_1305.map")
+        # self.voxel_size = self.map.voxel_size
+        self.tblrow = TblRow(self.tbl[0])
+        self.t = self.tblrow.transformation
+        self.em = EM("emd_1305_averaged.em")
+        self.box = self.em.volume_array.shape
+        self.origin = self.map.origin
+        self.voxel = (5.43, 5.43, 5.43)
 
+        with open(self.tblfn) as tbl:
+            first_line = tbl.readline().split(" ")
+            self.tdrot, self.tilt, self.narot = float(first_line[6]), float(first_line[7]), float(first_line[8])
+            self.ox, self.oy, self.oz = float(first_line[23]), float(first_line[24]), float(first_line[25])
+            self.dx, self.dy, self.dz = float(first_line[3]), float(first_line[4]), float(first_line[5])
+
+    def test_transformation_shape(self):
+        self.assertEqual((3, 4), self.t.shape)
+
+    def test_rotation(self):
+        self.rotation = np.delete(self.t, np.s_[-1], 1)
+
+        true_rotation = cm.rotate(math.radians(self.tdrot), math.radians(self.tilt), math.radians(self.narot))
+        print(self.rotation)
+        self.assertTrue(np.allclose(self.rotation, true_rotation))
+
+    def test_translation(self):
+        self.translation = np.delete(self.t, np.s_[:-1], 1).T.tolist()
+
+        # The "wanted true translation matrix"
+        self.tbl_translation = [(self.ox + self.dx)*self.voxel[0], (self.oy + self.dy)*self.voxel[1], (self.oz + self.dz)*self.voxel[2]]
+        self.assertEqual(self.translation[0], self.tbl_translation)
+        print(self.translation)
+
+
+class TestOutput(unittest.TestCase):
+    def setUp(self):
+        # "a" stands for "actual", which is the desired output
+        self.a_fn = "actual_1305_output.txt"
+        with open(self.a_fn) as f:
+            self.a_row = f.readline().split(",")[1:]
+
+        # Initialize the information
+        self.map_fn = "emd_1305.map"
+        self.map = Map(self.map_fn)  # wanted
+        self.size = self.map.voxel_size.tolist()
+        self.em_fn = "emd_1305_averaged.em"
+        self.em = EM(self.em_fn)  # wanted
+        self.box = self.em.volume_array.shape
+        self.tbl_fn = "emd_1305_averaged.tbl"
+        self.tbl = Tbl(self.tbl_fn)
+        self.tbl_row = TblRow(self.tbl[0], self.size)  # wanted
+
+        self.transformation_m = self.tbl_row.transformation
+        self.origin = self.map.origin
+
+        self.box = self.em.volume_array.shape
+
+        # Look inside the output file
+        self.output_fn = ""
+
+    def test_algorithm(self):
+        self.ox = self.origin[0].tolist()
+        self.oy = self.origin[1].tolist()
+        self.oz = self.origin[2].tolist()
+
+        o_m = np.array([[0, 0, 0, self.ox*self.size[0]], [0, 0, 0, self.oy*self.size[1]], [0, 0, 0, self.oz*self.size[2]]])
+        halfbox_m = np.array([[0, 0, 0, self.box[0]*self.size[0]/2], [0, 0, 0, self.box[1]*self.size[1]/2], [0, 0, 0, self.box[2]*self.size[2]/2]])
+
+        self.assertTrue(np.allclose(o_m[0][3], -162*5.43))
+        self.assertTrue(np.allclose(halfbox_m[0][3], 20*5.43))
+        print(self.transformation_m[0][3])
+        self.assertTrue(np.allclose(self.transformation_m + o_m - halfbox_m)[0][3], self.a_row[3])
 
 
 if __name__ == "__main__":
@@ -172,4 +266,3 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--tbl", metavar="", required=True, help="the Dynamo .tbl file")
     args = parser.parse_args()
     unittest.main(args)
-

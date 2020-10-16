@@ -101,22 +101,6 @@ def rotate(a, b, c, convention="zxz"):
     else:
         print("convention not supported")
 
-    return
-
-
-def combine_data(args):
-    """
-    The output format:
-    -----------Transformation data--------------
-    (translation vector + "\t" + rotation matrix)*n
-    -----------Map information-------------------
-    EMDB map format
-    nc
-    nr
-    ns
-    volume_data (in string)
-    """
-
 
 class Map:
     def __init__(self, fn):
@@ -160,11 +144,13 @@ class Tbl:
 
 
 class TblRow:
-    def __init__(self, tbl_row):
+    def __init__(self, tbl_row, voxel_size):
         self.row = tbl_row
+        self.size = voxel_size
         # change each element in the tbl_row into float
         self.dx, self.dy, self.dz, self.tdrot, self.tilt, self.narot, self.x, self.y, self.z = self._get_data(tbl_row)
         self.transformation = self._transform()
+
 
     def _get_data(self, tbl_row):
         dx, dy, dz = float(self.row[3]), float(self.row[4]), float(self.row[5])
@@ -172,9 +158,12 @@ class TblRow:
         x, y, z = float(self.row[23]), float(self.row[24]), float(self.row[25])
         return dx, dy, dz, tdrot, tilt, narot, x, y, z
 
+    # todo: Caution! Additional *self.size[i]. WHY???
     def _transform(self):
-        rotation = rotate(self.tdrot, self.tilt, self.narot)
-        transformation = np.insert(rotation, 3, [self.x + self.dx, self.y + self.dy, self.z + self.dz], axis=1)
+        rotation = rotate(math.radians(self.tdrot), math.radians(self.tilt), math.radians(self.narot))
+        transformation = np.insert(rotation, 3, [(self.x + self.dx*self.size[0])*self.size[0],
+                                                 (self.y + self.dy*self.size[0])*self.size[1],
+                                                 (self.z + self.dz*self.size[0])*self.size[2]], axis=1)
         return transformation
 
 
@@ -242,26 +231,26 @@ def create_output_files():
     # Map information
     map = Map(args.map_file)
     map_origin = map.origin
-    map_voxel_size = map.voxel_size
+    map_size = map.voxel_size.tolist()
+    origin_m = np.array(
+        [[0, 0, 0, map_origin[0]*map_size[0]], [0, 0, 0, map_origin[1]*map_size[1]], [0, 0, 0, map_origin[2]*map_size[2]]])
 
     # Tbl transformation
     tbl = Tbl(f"{args.data}.tbl")
-    origin_m = np.array(
-        [[0, 0, 0, map_origin[0]], [0, 0, 0, map_origin[1]], [0, 0, 0, map_origin[2]]])
 
     # .em data shape
     em = EM(f"{args.data}.em")
     box = em.volume_array.shape
     # Subtract half of the box_length
     half_box_m = np.array(
-        [[0, 0, 0, (1 / 2) * box[0]], [0, 0, 0, (1 / 2) * box[1]], [0, 0, 0, (1 / 2) * box[2]]])
+        [[0, 0, 0, (1/2)*box[0]*map_size[0]], [0, 0, 0, (1/2)*box[1]*map_size[1]], [0, 0, 0, (1/2)*box[2]*map_size[2]]])
 
     # A list contains the transformation of all particles
     transformations = []
     for i in range(tbl.length):
-        tbl_row = TblRow(tbl[i])
+        tbl_row = TblRow(tbl[i], map_size)
         tbl_m = tbl_row.transformation
-        transform_m = tbl_m + origin_m - half_box_m
+        transform_m = (tbl_m + origin_m - half_box_m)
         transformations.append(transform_m.tolist())
 
     # Output the text file
@@ -300,6 +289,7 @@ def create_output_files():
         print("nxstart: " + str(map.origin[0]))
         print("nystart: " + str(map.origin[1]))
         print("nzstart: " + str(map.origin[2]))
+
 
 
 def parse_args():
