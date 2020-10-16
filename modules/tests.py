@@ -9,7 +9,8 @@ import mrcfile
 
 import combine_modules as cm
 from combine_modules import Map, Tbl, TblRow, EM
-
+import random
+import math
 
 # we are inheriting the unittest.TestCase class
 # it has builtin special assertion methods
@@ -17,7 +18,7 @@ from combine_modules import Map, Tbl, TblRow, EM
 # read more about TestCase https://docs.python.org/3/library/unittest.html#assert-methods
 # add a docstring so that on verbose test runs (python -m unittest tests -v) you can see what each test is about
 
-"""
+""" 
 class EMDBassist(unittest.TestCase):
 
     def setUp(self) -> None:
@@ -185,20 +186,76 @@ class TestTblRow(unittest.TestCase):
     def setUp(self) -> None:
         self.tblfn = "emd_1305_averaged.tbl"
         self.tbl = Tbl(self.tblfn)
+        self.tbl_col = self.tbl.col
         self.map = Map("emd_1305.map")
+        self.size = self.map.voxel_size.tolist()
         # self.voxel_size = self.map.voxel_size
-        self.tblrow = TblRow(self.tbl[0])
+        self.tblrow = TblRow(self.tbl[0], self.size)
         self.t = self.tblrow.transformation
         self.em = EM("emd_1305_averaged.em")
         self.box = self.em.volume_array.shape
         self.origin = self.map.origin
-        self.voxel = (5.43, 5.43, 5.43)
 
+        #
         with open(self.tblfn) as tbl:
             first_line = tbl.readline().split(" ")
             self.tdrot, self.tilt, self.narot = float(first_line[6]), float(first_line[7]), float(first_line[8])
             self.ox, self.oy, self.oz = float(first_line[23]), float(first_line[24]), float(first_line[25])
             self.dx, self.dy, self.dz = float(first_line[3]), float(first_line[4]), float(first_line[5])
+
+    def get_random_row(self):
+        # Generate data with the same number of columns
+        random_row = [
+            random.randint(0, 100),
+            random.randint(0, 1),
+            random.randint(0, 1),
+            random.randint(-5, 5),
+            random.randint(-5, 5),
+            random.randint(-5, 5),
+            random.random() * random.choice([-360, 360]),
+            random.random() * random.choice([-360, 360]),
+            random.random() * random.choice([-360, 360]),
+            random.randint(0, 1),
+            random.randint(0, 1),
+            random.randint(0, 1),
+            random.randint(0, 1),
+            # mintilt 14-17
+            random.random() * random.choice([-360, 360]),
+            random.random() * random.choice([-360, 360]),
+            random.random() * random.choice([-360, 360]),
+            random.random() * random.choice([-360, 360]),
+            # 18-23
+            random.randint(0, 10),
+            random.randint(0, 10),
+            random.randint(0, 100),
+            random.randint(0, 10),
+            random.randint(0, 10),
+            random.randint(0, 10),
+            # 24-26 x,y,z coordinates
+            random.random() * random.randint(-1000, 1000),
+            random.random() * random.randint(-1000, 1000),
+            random.random() * random.randint(-1000, 1000),
+            # d(angle) 27-29
+            random.random() * random.randint(-360, 360),
+            random.random() * random.randint(-360, 360),
+            random.random() * random.randint(-360, 360),
+            # 30, 31, 32, 34, 35
+            random.random() * random.choice([-1, 1]),
+            random.randint(0, 1),
+            random.randint(0, 1),
+            random.randint(0, 1),
+            random.randint(0, 1),
+            random.randint(0, 1),
+        ]
+
+        return random_row
+
+    def test_columns(self):
+        random_row = self.get_random_row()
+        self.assertEqual(len(self.random_row), self.tbl_col)
+
+        for each in random_row:
+
 
     def test_transformation_shape(self):
         self.assertEqual((3, 4), self.t.shape)
@@ -211,11 +268,12 @@ class TestTblRow(unittest.TestCase):
         self.assertTrue(np.allclose(self.rotation, true_rotation))
 
     def test_translation(self):
-        self.translation = np.delete(self.t, np.s_[:-1], 1).T.tolist()
+        translation_column = np.delete(self.t, np.s_[:-1], 1).T
+        print(self.t)
 
         # The "wanted true translation matrix"
         self.tbl_translation = [(self.ox + self.dx)*self.voxel[0], (self.oy + self.dy)*self.voxel[1], (self.oz + self.dz)*self.voxel[2]]
-        self.assertEqual(self.translation[0], self.tbl_translation)
+        self.assertEqual(self.translation[0], self.tbl_translation[0])
         print(self.translation)
 
 
