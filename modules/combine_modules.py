@@ -144,7 +144,7 @@ class Tbl:
 
 
 class TblRow:
-    def __init__(self, tbl_row, voxel_size):
+    def __init__(self, tbl_row, voxel_size = (1.0, 1.0, 1.0)):
         self.row = tbl_row
         self.size = voxel_size
         # change each element in the tbl_row into float
