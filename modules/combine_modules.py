@@ -144,27 +144,31 @@ class Tbl:
 
 
 class TblRow:
-    def __init__(self, tbl_row, voxel_size = (1.0, 1.0, 1.0)):
+    def __init__(self, tbl_row, voxel_size=(1.0, 1.0, 1.0)):
         self.row = tbl_row
-        self.size = voxel_size
+        self.voxel_size = voxel_size
         # change each element in the tbl_row into float
-        self.dx, self.dy, self.dz, self.tdrot, self.tilt, self.narot, self.x, self.y, self.z = self._get_data(tbl_row)
+        self.dx, self.dy, self.dz, self.tdrot, self.tilt, self.narot, \
+        self.x, self.y, self.z, self.dshift, self.daxis, self.dnarot = self._get_data(tbl_row)
         self.transformation = self._transform()
-
 
     def _get_data(self, tbl_row):
         dx, dy, dz = float(self.row[3]), float(self.row[4]), float(self.row[5])
         tdrot, tilt, narot = float(self.row[6]), float(self.row[7]), float(self.row[8])
         x, y, z = float(self.row[23]), float(self.row[24]), float(self.row[25])
-        return dx, dy, dz, tdrot, tilt, narot, x, y, z
+        dshift, daxis, dnarot = float(self.row[26]), float(self.row[27]), float(self.row[28])
+        return dx, dy, dz, tdrot, tilt, narot, x, y, z, dshift, daxis, dnarot
 
     # todo: Caution! Additional *self.size[i]. WHY???
     def _transform(self):
         rotation = rotate(math.radians(self.tdrot), math.radians(self.tilt), math.radians(self.narot))
-        transformation = np.insert(rotation, 3, [(self.x + self.dx*self.size[0])*self.size[0],
-                                                 (self.y + self.dy*self.size[0])*self.size[1],
-                                                 (self.z + self.dz*self.size[0])*self.size[2]], axis=1)
+        transformation = np.insert(rotation, 3, [(self.x + self.dx * self.voxel_size[0]) * self.voxel_size[0],
+                                                 (self.y + self.dy * self.voxel_size[0]) * self.voxel_size[1],
+                                                 (self.z + self.dz * self.voxel_size[0]) * self.voxel_size[2]], axis=1)
         return transformation
+
+    def __str__(self):
+        return f"TblRow({self.row}, voxel_size={self.voxel_size})"
 
 
 class EM:
@@ -233,7 +237,8 @@ def create_output_files():
     map_origin = map.origin
     map_size = map.voxel_size.tolist()
     origin_m = np.array(
-        [[0, 0, 0, map_origin[0]*map_size[0]], [0, 0, 0, map_origin[1]*map_size[1]], [0, 0, 0, map_origin[2]*map_size[2]]])
+        [[0, 0, 0, map_origin[0] * map_size[0]], [0, 0, 0, map_origin[1] * map_size[1]],
+         [0, 0, 0, map_origin[2] * map_size[2]]])
 
     # Tbl transformation
     tbl = Tbl(f"{args.data}.tbl")
@@ -243,7 +248,8 @@ def create_output_files():
     box = em.volume_array.shape
     # Subtract half of the box_length
     half_box_m = np.array(
-        [[0, 0, 0, (1/2)*box[0]*map_size[0]], [0, 0, 0, (1/2)*box[1]*map_size[1]], [0, 0, 0, (1/2)*box[2]*map_size[2]]])
+        [[0, 0, 0, (1 / 2) * box[0] * map_size[0]], [0, 0, 0, (1 / 2) * box[1] * map_size[1]],
+         [0, 0, 0, (1 / 2) * box[2] * map_size[2]]])
 
     # A list contains the transformation of all particles
     transformations = []
@@ -289,7 +295,6 @@ def create_output_files():
         print("nxstart: " + str(map.origin[0]))
         print("nystart: " + str(map.origin[1]))
         print("nzstart: " + str(map.origin[2]))
-
 
 
 def parse_args():

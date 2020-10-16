@@ -1,16 +1,13 @@
-import math
-import unittest
-import numpy as np
 import argparse
-import sys
-# trick: use shlex to parse commands
-import shlex
-import mrcfile
+import math
+import random
+import unittest
 
 import combine_modules as cm
+import numpy as np
 from combine_modules import Map, Tbl, TblRow, EM
-import random
-import math
+
+# trick: use shlex to parse commands
 
 # we are inheriting the unittest.TestCase class
 # it has builtin special assertion methods
@@ -151,6 +148,7 @@ class EMDBassist(unittest.TestCase):
         self.assertEqual(real_transformation, output_transformation)
 """
 
+
 class TestMap(unittest.TestCase):
     def setUp(self) -> None:
         self.fn = "emd_1305.map"
@@ -206,7 +204,7 @@ class TestTblRow(unittest.TestCase):
     def get_random_row(self):
         # Generate data with the same number of columns
         random_row = [
-            random.randint(0, 100),
+            random.randint(0, 100),  # tag
             random.randint(0, 1),
             random.randint(0, 1),
             random.randint(-5, 5),
@@ -252,10 +250,40 @@ class TestTblRow(unittest.TestCase):
 
     def test_columns(self):
         random_row = self.get_random_row()
-        self.assertEqual(len(self.random_row), self.tbl_col)
+        self.assertEqual(len(random_row), self.tbl_col)
 
-        for each in random_row:
+        # if i instantiate a TblRow object are the attributes correct
+        row_data = self.get_random_row()
+        tblrow = TblRow(row_data)
+        self.assertEqual(tblrow.dx, row_data[3])
+        self.assertEqual(tblrow.dy, row_data[4])
+        self.assertEqual(tblrow.dz, row_data[5])
+        self.assertEqual(tblrow.tdrot, row_data[6])
+        self.assertEqual(tblrow.tilt, row_data[7])
+        self.assertEqual(tblrow.narot, row_data[8])
+        self.assertEqual(tblrow.x, row_data[23])
+        self.assertEqual(tblrow.y, row_data[24])
+        self.assertEqual(tblrow.z, row_data[25])
+        self.assertEqual(tblrow.dshift, row_data[26])
+        self.assertEqual(tblrow.daxis, row_data[27])
+        self.assertEqual(tblrow.dnarot, row_data[28])
 
+    def test_transform(self):
+        random_row = self.get_random_row()
+        tbl_row = TblRow(random_row,)
+        transform1 = tbl_row._transform()
+        print(f"transform:\n{transform1}")
+        vs = 5.43
+        tbl_row = TblRow(random_row, voxel_size=(vs, vs, vs))
+        transform2 = tbl_row._transform()
+        print(f"transform:\n{transform2}")
+        self.assertEqual(transform2.shape, (3, 4))
+        print(f"last column: {transform2[:,3]}")
+        a = transform1[:, 3] * vs
+        b = transform2[:, 3]
+        print(f"a\n{a}")
+        print(f"b\n{b}")
+        self.assertEqual(np.allclose(a, b))
 
     def test_transformation_shape(self):
         self.assertEqual((3, 4), self.t.shape)
@@ -272,7 +300,8 @@ class TestTblRow(unittest.TestCase):
         print(self.t)
 
         # The "wanted true translation matrix"
-        self.tbl_translation = [(self.ox + self.dx)*self.voxel[0], (self.oy + self.dy)*self.voxel[1], (self.oz + self.dz)*self.voxel[2]]
+        self.tbl_translation = [(self.ox + self.dx) * self.voxel[0], (self.oy + self.dy) * self.voxel[1],
+                                (self.oz + self.dz) * self.voxel[2]]
         self.assertEqual(self.translation[0], self.tbl_translation[0])
         print(self.translation)
 
@@ -308,11 +337,13 @@ class TestOutput(unittest.TestCase):
         self.oy = self.origin[1].tolist()
         self.oz = self.origin[2].tolist()
 
-        o_m = np.array([[0, 0, 0, self.ox*self.size[0]], [0, 0, 0, self.oy*self.size[1]], [0, 0, 0, self.oz*self.size[2]]])
-        halfbox_m = np.array([[0, 0, 0, self.box[0]*self.size[0]/2], [0, 0, 0, self.box[1]*self.size[1]/2], [0, 0, 0, self.box[2]*self.size[2]/2]])
+        o_m = np.array(
+            [[0, 0, 0, self.ox * self.size[0]], [0, 0, 0, self.oy * self.size[1]], [0, 0, 0, self.oz * self.size[2]]])
+        halfbox_m = np.array([[0, 0, 0, self.box[0] * self.size[0] / 2], [0, 0, 0, self.box[1] * self.size[1] / 2],
+                              [0, 0, 0, self.box[2] * self.size[2] / 2]])
 
-        self.assertTrue(np.allclose(o_m[0][3], -162*5.43))
-        self.assertTrue(np.allclose(halfbox_m[0][3], 20*5.43))
+        self.assertTrue(np.allclose(o_m[0][3], -162 * 5.43))
+        self.assertTrue(np.allclose(halfbox_m[0][3], 20 * 5.43))
         print(self.transformation_m[0][3])
         self.assertTrue(np.allclose(self.transformation_m + o_m - halfbox_m)[0][3], self.a_row[3])
 
