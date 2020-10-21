@@ -7,6 +7,7 @@ import combine_modules as cm
 import numpy as np
 from combine_modules import Map, Tbl, TblRow, EM
 
+
 # trick: use shlex to parse commands
 
 # we are inheriting the unittest.TestCase class
@@ -15,8 +16,8 @@ from combine_modules import Map, Tbl, TblRow, EM
 # read more about TestCase https://docs.python.org/3/library/unittest.html#assert-methods
 # add a docstring so that on verbose test runs (python -m unittest tests -v) you can see what each test is about
 
-""" 
-class EMDBassist(unittest.TestCase):
+
+class rotation_matrices(unittest.TestCase):
 
     def setUp(self) -> None:
         self.a, self.b, self.c = math.radians(90), math.radians(90), math.radians(90)
@@ -26,42 +27,41 @@ class EMDBassist(unittest.TestCase):
     def tearDown(self) -> None:
         print('test finished!')
 
-    def test_dy_mode(self):
-        ### Tests to ensure only desired modes exist
-        self.assertIsInstance(self.em.dy_mode, int)
-        self.assertIn(self.em.dy_mode, [2, 4, 5, 9])
-
     def test_matrix_z(self):
-        # unit vector along +x (1, 0, 0)
-        v = np.array([[1], [0], [0]])
-        # apply rotation around z: 90
-        _matrix = cm.matrix_z(math.radians(90))
-        print(f"matrix: {_matrix}")
-        vp = _matrix.dot(v)
-        # expect: (0, 1, 0)
-        self.assertTrue(np.allclose(vp, np.array([[0], [1], [0]])))
+        # anticlockwise rotation
+        _matrix = cm.matrix_z(self.a)
+
+        test = _matrix.dot(self.dot)
+        test2 = _matrix.dot(self.dot2)
+        expect = np.array([[0], [-1], [0]])
+        expect2 = np.array([[-1], [1], [0]])
+        self.assertTrue(np.allclose(test, expect))
+        self.assertTrue(np.allclose(test2, expect2))
 
     def test_matrix_x(self):
-        # unit vector along +y (0, 1, 0)
-        v = np.array([[0], [1], [0]])
-        # apply rotation around x: 90
-        vp = cm.matrix_x(math.radians(90)).dot(v)
-        # expect: (0, 0, 1)
-        self.assertTrue(np.allclose(vp, np.array([[0], [0], [1]])))
+        _matrix = cm.matrix_x(self.a)
+
+        test = _matrix.dot(self.dot)
+        test2 = _matrix.dot(self.dot2)
+        expect = np.array([[1], [0], [0]])
+        expect2 = np.array([[-1], [0], [1]])
+        self.assertTrue(np.allclose(test, expect))
+        self.assertTrue(np.allclose(test2, expect2))
 
     def test_matrix_y(self):
-        # unit vector along +y (0, 0, 1)
-        v = np.array([[0], [0], [1]])
-        # apply rotation around y: 90
-        vp = cm.matrix_y(math.radians(90)).dot(v)
-        # expect: (1, 0, 0)
-        self.assertTrue(np.allclose(vp, np.array([[1], [0], [0]])))
+        _matrix = cm.matrix_y(self.a)
+
+        test = _matrix.dot(self.dot)
+        test2 = _matrix.dot(self.dot2)
+        expect = np.array([[0], [0], [1]])
+        expect2 = np.array([[0], [-1], [-1]])
+        self.assertTrue(np.allclose(test, expect))
+        self.assertTrue(np.allclose(test2, expect2))
 
     def test_zxz(self):
+        # Useful visualization
+        # http://danceswithcode.net/engineeringnotes/rotations_in_3d/demo3D/rotations_in_3d_tool.html
 
-        ### Tests to ensure rotation matrices are correct.
-        ### Useful visualization: http://danceswithcode.net/engineeringnotes/rotations_in_3d/demo3D/rotations_in_3d_tool.html
-        
         rotate_zxz = cm.rotate(self.a, self.b, self.c, convention="zxz")
 
         final_dot = np.array([[0], [0], [1]])
@@ -92,7 +92,6 @@ class EMDBassist(unittest.TestCase):
         self.assertTrue(np.allclose(rotate_yzy.dot(self.dot2), final_dot2))
 
     def test_yxy(self):
-
         rotate_yxy = cm.rotate(self.a, self.b, self.c, convention="yxy")
 
         final_dot = np.array([[0], [1], [0]])
@@ -119,34 +118,10 @@ class EMDBassist(unittest.TestCase):
         self.assertTrue(np.allclose(rotate_xyx.dot(self.dot), final_dot))
         self.assertTrue(np.allclose(rotate_xyx.dot(self.dot2), final_dot2))
 
-    def test_transformation(self):
-        # todo: check that the matrix in the output txt has shape 3*4, and corresponds to the correct order?
-        # todo: to check the translation is correct - have map start coordinates added
-        # tbl_transformation + map_start = real_transformation/output_transformation
-
-        real_transformation = []
-        output_transformation = []
-
-        with open(self.tbl, "r") as tbl:
-            x = float(self.map_header.nxstart)
-            y = float(self.map_header.nystart)
-            z = float(self.map_header.nzstart)
-            for line in tbl:
-                line = str(line).split(" ")
-                real_transformation.append(
-                    [str(float(line[23]) + x), str(float(line[24]) + y), str(float(line[25]) + z)])
-
-        with open(self.output, "r") as output:
-            for line in output:
-                if line[0] in map(str, range(10)):
-                    data = line.strip('\n').split('\t')[1:]
-                    output_transformation.append([data[3], data[7], data[11]])
-
-        self.assertEqual(len(data), 12)
-        self.assertEqual(len(real_transformation), 20)
-        self.assertEqual(len(output_transformation), 20)
-        self.assertEqual(real_transformation, output_transformation)
-"""
+    def test_unsupported_convention(self):
+        # Try a Tait-Bryan convention
+        with self.assertRaises(NameError):
+            cm.rotate(self.a, self.b, self.c, convention="xyz")
 
 
 class TestMap(unittest.TestCase):
@@ -180,6 +155,17 @@ class TestMap(unittest.TestCase):
         self.assertEqual(self.map.mode, 2)
 
 
+class TestTbl(unittest.TestCase):
+    def test_row_col_number(self):
+        with open("emd_1305_averaged.tbl","r") as tbl:
+            row1 = tbl.readline()
+            row2 = tbl.readline()[0:(len(row1)-2)]
+            with open("rm_fake_tbl.tbl", "w") as fake:
+                fake.write(row1+row2)
+        with self.assertRaises(ValueError):
+            Tbl._get_data(self, fn="rm_fake_tbl.tbl")
+
+
 class TestTblRow(unittest.TestCase):
     def setUp(self) -> None:
         self.tblfn = "emd_1305_averaged.tbl"
@@ -187,6 +173,7 @@ class TestTblRow(unittest.TestCase):
         self.tbl_col = self.tbl.col
         self.map = Map("emd_1305.map")
         self.size = self.map.voxel_size.tolist()
+        self.row = TblRow(self.tbl[0], self.size)
         # self.voxel_size = self.map.voxel_size
         self.tblrow = TblRow(self.tbl[0], self.size)
         self.t = self.tblrow.transformation
@@ -194,12 +181,26 @@ class TestTblRow(unittest.TestCase):
         self.box = self.em.volume_array.shape
         self.origin = self.map.origin
 
-        #
         with open(self.tblfn) as tbl:
             first_line = tbl.readline().split(" ")
             self.tdrot, self.tilt, self.narot = float(first_line[6]), float(first_line[7]), float(first_line[8])
             self.ox, self.oy, self.oz = float(first_line[23]), float(first_line[24]), float(first_line[25])
             self.dx, self.dy, self.dz = float(first_line[3]), float(first_line[4]), float(first_line[5])
+
+    def test_size(self):
+        self.assertAlmostEqual(5.43, self.size[0], places=2)
+        self.assertAlmostEqual(5.43, self.size[1], places=2)
+        self.assertAlmostEqual(5.43, self.size[2], places=2)
+
+    def test_box_size(self):
+        self.assertAlmostEqual(40, self.box[0])
+        self.assertAlmostEqual(40, self.box[1])
+        self.assertAlmostEqual(40, self.box[2])
+
+    def test_origin(self):
+        self.assertAlmostEqual(-162, self.origin[0])
+        self.assertAlmostEqual(-162, self.origin[1])
+        self.assertAlmostEqual(-162, self.origin[2])
 
     def get_random_row(self):
         # Generate data with the same number of columns
@@ -248,7 +249,7 @@ class TestTblRow(unittest.TestCase):
 
         return random_row
 
-    def test_columns(self):
+    def test_get_data(self):
         random_row = self.get_random_row()
         self.assertEqual(len(random_row), self.tbl_col)
 
@@ -270,40 +271,77 @@ class TestTblRow(unittest.TestCase):
 
     def test_transform(self):
         random_row = self.get_random_row()
-        tbl_row = TblRow(random_row,)
+        tbl_row = TblRow(random_row, self.size)
         transform1 = tbl_row._transform()
-        print(f"transform:\n{transform1}")
         vs = 5.43
-        tbl_row = TblRow(random_row, voxel_size=(vs, vs, vs))
-        transform2 = tbl_row._transform()
-        print(f"transform:\n{transform2}")
-        self.assertEqual(transform2.shape, (3, 4))
-        print(f"last column: {transform2[:,3]}")
-        a = transform1[:, 3] * vs
-        b = transform2[:, 3]
-        print(f"a\n{a}")
-        print(f"b\n{b}")
-        self.assertEqual(np.allclose(a, b))
+
+        test_r = cm.rotate(math.radians(random_row[6]),
+                           math.radians(random_row[7]), math.radians(random_row[8]), convention="zxz")
+
+        # Test rotation
+        self.assertEqual(test_r.shape, transform1[:, 0:3].shape)
+        self.assertTrue(np.allclose(test_r, transform1[:, 0:3]))
+
+        test_dx, test_dy, test_dz = random_row[3], random_row[4], random_row[5]
+        test_x, test_y, test_z = random_row[23], random_row[24], random_row[25]
+        # since test_algorithm() in class TestOutput succeeded
+        test_t = np.array([
+            [5.43*(test_dx*5.43 + test_x)],
+            [5.43*(test_dy*5.43 + test_y)],
+            [5.43*(test_dz*5.43 + test_z)]
+        ])
+
+        # combine the test_r and test_t
+        transform2 = np.concatenate((test_r, test_t), axis=1)
+        print(transform1[-1, -1])
+        print(transform2[-1, -1])
+        self.assertTrue(np.allclose(transform1, transform2))
 
     def test_transformation_shape(self):
         self.assertEqual((3, 4), self.t.shape)
 
-    def test_rotation(self):
-        self.rotation = np.delete(self.t, np.s_[-1], 1)
+    def test_printing(self):
+        with open(self.tblfn, "r") as tbl:
+            row = tbl.readline().rstrip().split(" ")
+        self.assertEqual(
+            f"Tbl_row={str(row)}, voxel_size={str(self.size)}",
+            self.row.__str__()
+        )
 
-        true_rotation = cm.rotate(math.radians(self.tdrot), math.radians(self.tilt), math.radians(self.narot))
-        print(self.rotation)
-        self.assertTrue(np.allclose(self.rotation, true_rotation))
+class TestEM(unittest.TestCase):
+    def setUp(self):
+        self.em_fn = "emd_1305_averaged.em"
+        self.em = EM(self.em_fn)
 
-    def test_translation(self):
-        translation_column = np.delete(self.t, np.s_[:-1], 1).T
-        print(self.t)
+    def test_dy_mode(self):
+        # Tests to ensure only desired modes exist
+        self.assertIsInstance(self.em.dy_mode, int)
+        self.assertIn(self.em.dy_mode, [2, 4, 5, 9])
 
-        # The "wanted true translation matrix"
-        self.tbl_translation = [(self.ox + self.dx) * self.voxel[0], (self.oy + self.dy) * self.voxel[1],
-                                (self.oz + self.dz) * self.voxel[2]]
-        self.assertEqual(self.translation[0], self.tbl_translation[0])
-        print(self.translation)
+        with self.assertRaises(Exception):
+            # todo: this should not pass!
+            self.em.dy_mode = 2
+            EM.__init__(self.em_fn)
+
+    def test_box(self):
+        self.assertEqual(40, self.em.nc)
+        self.assertEqual(40, self.em.nr)
+        self.assertEqual(40, self.em.ns)
+
+    # todo:
+    def test_volume_encoded(self):
+        # check whether is it encoded in base64
+        # a regular expression of base64 string: ^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?$
+        #self.assertTrue(False)
+        pass
+
+    # todo:
+    def test_zlib_compressed(self):
+        #self.assertTrue(False)
+        pass
+
+    def test_volume_array(self):
+        self.assertEqual(self.em.volume_array.shape, (40, 40, 40))
 
 
 class TestOutput(unittest.TestCase):
@@ -330,6 +368,7 @@ class TestOutput(unittest.TestCase):
         self.box = self.em.volume_array.shape
 
         # Look inside the output file
+        # todo: ........
         self.output_fn = ""
 
     def test_algorithm(self):
@@ -344,8 +383,7 @@ class TestOutput(unittest.TestCase):
 
         self.assertTrue(np.allclose(o_m[0][3], -162 * 5.43))
         self.assertTrue(np.allclose(halfbox_m[0][3], 20 * 5.43))
-        print(self.transformation_m[0][3])
-        self.assertTrue(np.allclose(self.transformation_m + o_m - halfbox_m)[0][3], self.a_row[3])
+        self.assertTrue(np.allclose((self.transformation_m + o_m - halfbox_m)[0][3], float(self.a_row[3])))
 
 
 if __name__ == "__main__":

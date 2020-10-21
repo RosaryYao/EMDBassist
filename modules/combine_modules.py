@@ -99,7 +99,7 @@ def rotate(a, b, c, convention="zxz"):
     elif convention == "xyx":
         return matrix_x(a).dot(matrix_y(b)).dot(matrix_x(c))
     else:
-        print("convention not supported")
+        raise NameError("convention not supported!")
 
 
 class Map:
@@ -146,7 +146,7 @@ class Tbl:
 class TblRow:
     def __init__(self, tbl_row, voxel_size=(1.0, 1.0, 1.0)):
         self.row = tbl_row
-        self.voxel_size = voxel_size
+        self.size = voxel_size
         # change each element in the tbl_row into float
         self.dx, self.dy, self.dz, self.tdrot, self.tilt, self.narot, \
         self.x, self.y, self.z, self.dshift, self.daxis, self.dnarot = self._get_data(tbl_row)
@@ -162,13 +162,13 @@ class TblRow:
     # todo: Caution! Additional *self.size[i]. WHY???
     def _transform(self):
         rotation = rotate(math.radians(self.tdrot), math.radians(self.tilt), math.radians(self.narot))
-        transformation = np.insert(rotation, 3, [(self.x + self.dx * self.voxel_size[0]) * self.voxel_size[0],
-                                                 (self.y + self.dy * self.voxel_size[0]) * self.voxel_size[1],
-                                                 (self.z + self.dz * self.voxel_size[0]) * self.voxel_size[2]], axis=1)
+        transformation = np.insert(rotation, 3, [(self.x + self.dx * self.size[0]) * self.size[0],
+                                                 (self.y + self.dy * self.size[0]) * self.size[1],
+                                                 (self.z + self.dz * self.size[0]) * self.size[2]], axis=1)
         return transformation
 
     def __str__(self):
-        return f"TblRow({self.row}, voxel_size={self.voxel_size})"
+        return f"Tbl_row={self.row}, voxel_size={self.size}"
 
 
 class EM:
