@@ -182,7 +182,6 @@ class EM:
     def __init__(self, filename):
         self.filename = filename
 
-        # todo: write a _get_data method
         with open(self.filename, 'rb') as em:
             # the header is 128 words = 512 bytes. np.dtype = "int32" (long integer)
             # we read the first 4 words (word = 4 bytes)
@@ -202,7 +201,7 @@ class EM:
                 self.mode = 4
                 type_flag = "d"
             else:
-                raise Exception("data not supported yet!")
+                raise NotImplementedError("data not supported yet!")
 
             # pick the col, row, sect values
             self.nc, self.nr, self.ns = self.dynamo_header[1:4]
@@ -229,8 +228,8 @@ class EM:
         return numpy.array(self.volume_data, dtype=numpy.float32).reshape(self.nc, self.nr, self.ns)
 
 
-def create_output_files():
-    args = parse_args()
+def rearrange_matrix(args):
+    # args = parse_args()
 
     # Map information
     map = Map(args.map_file)
@@ -259,8 +258,15 @@ def create_output_files():
         transform_m = (tbl_m + origin_m - half_box_m)
         transformations.append(transform_m.tolist())
 
+    return tbl, transformations
+
+
+def create_output(args):
     # Output the text file
-    with open(f"{args.data}_transformation.txt", "w") as f:
+    tbl, transformations = rearrange_matrix(args)
+    em = EM(f"{args.data}.em")
+    map = Map(f"{args.map_file}")
+    with open(f"{args.data}.txt", "w") as f:
         for i in range(tbl.length):
             line_to_write = str(i + 1) + "," \
                             + "".join(
@@ -273,28 +279,35 @@ def create_output_files():
         f.write("Nr:" + "\t" + str(em.nr) + "\n")
         f.write("Ns:" + "\t" + str(em.ns) + "\n")
 
+        # uncompressed:0, compressed:1
         output_flag = 0
         if args.compress:
-            print('compressed')
             f.write(f"Data:\t{em.volume_encoded_compressed.decode('utf-8')}")
-        else:
-            print('uncompressed')
-            f.write(f"Data:\t{em.volume_encoded.decode('utf-8')}")
             output_flag = 1
+        else:
+            f.write(f"Data:\t{em.volume_encoded.decode('utf-8')}")
 
-    if args.output:
-        os.rename(rf"{args.data}_transformation.txt", rf"{args.output}.txt")
-        output_flag = 2
-
-    if output_flag == 2:
+    if not args.output:
+        if output_flag == 1:
+            os.rename(rf"{args.data}.txt", rf"{args.data}_c.txt")
+            print("Data is compressed.")
+            print(f"{args.data}_c.txt is created.")
+        elif output_flag == 0:
+            os.rename(rf"{args.data}.txt", rf"{args.data}_nc.txt")
+            print("Data is not compressed.")
+            print(f"{args.data}_nc.txt is created.")
+    elif args.output:
+        os.rename(rf"{args.data}.txt", rf"{args.output}.txt")
+        if output_flag == 0:
+            print("Data is not compressed.")
+        elif output_flag == 1:
+            print("Data is compressed.")
         print(f"{args.output}.txt" + " is created.")
-    else:
-        print(f"{args.data}_output.txt" + " is created.")
 
     if args.map_start:
-        print("nxstart: " + str(map.origin[0]))
-        print("nystart: " + str(map.origin[1]))
-        print("nzstart: " + str(map.origin[2]))
+        print("nxstart: " + str(map.origin[0]) + "\n" +
+              "nystart: " + str(map.origin[1]) + "\n" +
+              "nzstart: " + str(map.origin[2]))
 
 
 def parse_args():
@@ -322,11 +335,36 @@ def main():
     if not os.path.exists(f"{args.data}.tbl"):
         raise ValueError(f"file '{args.data}.tbl does not exist")
 
-    create_output_files()
+    create_output(args)
     return 0
 
+
+"""
+def main(args):
+    parser = argparse.ArgumentParser(
+        description="output a single file that contains transformation data and voxel data. Default voxel data is "
+                    "zlib compressed")
+    parser.add_argument("-d", "--data", metavar="", required=True, help="the Dynamo .em and .tbl file.")
+    # parser.add_argument("-t", "--tbl", default=False, action="store_true", help="the Dynamo .tbl file")
+    parser.add_argument("-o", "--output", help="the output file name (.txt)")
+    parser.add_argument("-c", "--compress", default=False, action="store_true",
+                        help="Compress the voxel data [default: False]")
+    parser.add_argument("-m", "--map-file", metavar="", help="The original .map file")
+    parser.add_argument("-s", "--map-start", default=False, action="store_true",
+                        help="Print the nxstart, nystart, nzstart of the original .map file")
+    args, unknown = parser.parse_known_args()
+
+    if not os.path.exists(f"{args.data}.em"):
+        raise ValueError(f"file '{args.data}.em does not exist")
+    if not os.path.exists(f"{args.data}.tbl"):
+        raise ValueError(f"file '{args.data}.tbl does not exist")
+
+    create_output_files(args=args)
+    return 0
+"""
 
 # only run main if this script is being executed
 if __name__ == "__main__":
     # print(sys.argv)
+    # sys.exit(main(sys.argv[1:]))
     sys.exit(main())

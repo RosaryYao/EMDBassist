@@ -1,7 +1,14 @@
 import argparse
+import base64
+import io
 import math
 import random
+import sys
 import unittest
+import re
+import binascii
+from unittest.mock import Mock
+import os
 
 import combine_modules as cm
 import numpy as np
@@ -157,11 +164,11 @@ class TestMap(unittest.TestCase):
 
 class TestTbl(unittest.TestCase):
     def test_row_col_number(self):
-        with open("emd_1305_averaged.tbl","r") as tbl:
+        with open("emd_1305_averaged.tbl", "r") as tbl:
             row1 = tbl.readline()
-            row2 = tbl.readline()[0:(len(row1)-2)]
+            row2 = tbl.readline()[0:(len(row1) - 2)]
             with open("rm_fake_tbl.tbl", "w") as fake:
-                fake.write(row1+row2)
+                fake.write(row1 + row2)
         with self.assertRaises(ValueError):
             Tbl._get_data(self, fn="rm_fake_tbl.tbl")
 
@@ -286,9 +293,9 @@ class TestTblRow(unittest.TestCase):
         test_x, test_y, test_z = random_row[23], random_row[24], random_row[25]
         # since test_algorithm() in class TestOutput succeeded
         test_t = np.array([
-            [5.43*(test_dx*5.43 + test_x)],
-            [5.43*(test_dy*5.43 + test_y)],
-            [5.43*(test_dz*5.43 + test_z)]
+            [5.43 * (test_dx * 5.43 + test_x)],
+            [5.43 * (test_dy * 5.43 + test_y)],
+            [5.43 * (test_dz * 5.43 + test_z)]
         ])
 
         # combine the test_r and test_t
@@ -308,6 +315,7 @@ class TestTblRow(unittest.TestCase):
             self.row.__str__()
         )
 
+
 class TestEM(unittest.TestCase):
     def setUp(self):
         self.em_fn = "emd_1305_averaged.em"
@@ -317,74 +325,139 @@ class TestEM(unittest.TestCase):
         # Tests to ensure only desired modes exist
         self.assertIsInstance(self.em.dy_mode, int)
         self.assertIn(self.em.dy_mode, [2, 4, 5, 9])
+        em_fn2 = "emd_1305_mode2.em"
+        em_fn4 = "emd_1305_mode4.em"
+        em_fn9 = "emd_1305_mode9.em"
+        em2 = EM(em_fn2)
+        em4 = EM(em_fn4)
+        em9 = EM(em_fn9)
+        self.assertEqual(int(em2.dy_mode), 2)
+        self.assertEqual(int(em4.dy_mode), 4)
+        self.assertEqual(int(em9.dy_mode), 9)
 
-        with self.assertRaises(Exception):
-            # todo: this should not pass!
-            self.em.dy_mode = 2
-            EM.__init__(self.em_fn)
+        with self.assertRaises(NotImplementedError):
+            em_fn8 = "emd_1305_mode8.em"
+            em8 = EM(em_fn8)
+            print(em8.dy_mode)
 
     def test_box(self):
         self.assertEqual(40, self.em.nc)
         self.assertEqual(40, self.em.nr)
         self.assertEqual(40, self.em.ns)
 
-    # todo:
     def test_volume_encoded(self):
         # check whether is it encoded in base64
         # a regular expression of base64 string: ^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?$
-        #self.assertTrue(False)
-        pass
+        self.assertTrue(
+            re.match(rb"^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?$", self.em.volume_encoded))
 
     # todo:
-    def test_zlib_compressed(self):
-        #self.assertTrue(False)
+    def test_not_compressed(self):
         pass
+
+    def test_zlib_compressed(self):
+        data = self.em.volume_encoded_compressed
+        data_binary = base64.b64decode(data)[:4]
+        ascii_hex = binascii.b2a_hex(data_binary)
+
+        zlib_flag = [bytes("7801", "utf-8"), bytes("789c", "utf-8"), bytes("78da", "utf-8")]
+        flag = 0
+        if ascii_hex[0:4] in zlib_flag:
+            flag = 1
+        self.assertEqual(flag, 1)
 
     def test_volume_array(self):
         self.assertEqual(self.em.volume_array.shape, (40, 40, 40))
 
 
-class TestOutput(unittest.TestCase):
+class Test_rearrange_matrix(unittest.TestCase):
     def setUp(self):
-        # "a" stands for "actual", which is the desired output
-        self.a_fn = "actual_1305_output.txt"
-        with open(self.a_fn) as f:
-            self.a_row = f.readline().split(",")[1:]
+        mock_args = Mock(data="emd_1305_averaged", map_file="emd_1305.map")
+        self.tbl_test, self.transformations_test = cm.rearrange_matrix(mock_args)
 
-        # Initialize the information
-        self.map_fn = "emd_1305.map"
-        self.map = Map(self.map_fn)  # wanted
-        self.size = self.map.voxel_size.tolist()
-        self.em_fn = "emd_1305_averaged.em"
-        self.em = EM(self.em_fn)  # wanted
-        self.box = self.em.volume_array.shape
-        self.tbl_fn = "emd_1305_averaged.tbl"
-        self.tbl = Tbl(self.tbl_fn)
-        self.tbl_row = TblRow(self.tbl[0], self.size)  # wanted
+    def test_tbl(self):
+        actual_tbl = cm.Tbl("emd_1305_averaged.tbl")
+        self.assertEqual(actual_tbl[0], self.tbl_test[0])
 
-        self.transformation_m = self.tbl_row.transformation
-        self.origin = self.map.origin
+    def test_transformations(self):
+        map_fn = "emd_1305.map"
+        map = Map(map_fn)  # wanted
+        size = map.voxel_size.tolist()
+        em_fn = "emd_1305_averaged.em"
+        em = EM(em_fn)  # wanted
+        box = em.volume_array.shape
+        tbl_fn = "emd_1305_averaged.tbl"
+        tbl = Tbl(tbl_fn)
+        tbl_row = TblRow(tbl[0], size)  # wanted
 
-        self.box = self.em.volume_array.shape
+        transformation_m = tbl_row.transformation
+        origin = map.origin
 
-        # Look inside the output file
-        # todo: ........
-        self.output_fn = ""
-
-    def test_algorithm(self):
-        self.ox = self.origin[0].tolist()
-        self.oy = self.origin[1].tolist()
-        self.oz = self.origin[2].tolist()
+        ox = origin[0].tolist()
+        oy = origin[1].tolist()
+        oz = origin[2].tolist()
 
         o_m = np.array(
-            [[0, 0, 0, self.ox * self.size[0]], [0, 0, 0, self.oy * self.size[1]], [0, 0, 0, self.oz * self.size[2]]])
-        halfbox_m = np.array([[0, 0, 0, self.box[0] * self.size[0] / 2], [0, 0, 0, self.box[1] * self.size[1] / 2],
-                              [0, 0, 0, self.box[2] * self.size[2] / 2]])
+            [[0, 0, 0, ox * size[0]], [0, 0, 0, oy * size[1]], [0, 0, 0, oz * size[2]]])
+        halfbox_m = np.array([[0, 0, 0, box[0] * size[0] / 2], [0, 0, 0, box[1] * size[1] / 2],
+                              [0, 0, 0, box[2] * size[2] / 2]])
 
-        self.assertTrue(np.allclose(o_m[0][3], -162 * 5.43))
-        self.assertTrue(np.allclose(halfbox_m[0][3], 20 * 5.43))
-        self.assertTrue(np.allclose((self.transformation_m + o_m - halfbox_m)[0][3], float(self.a_row[3])))
+        self.assertTrue(np.allclose(self.transformations_test[0], transformation_m + o_m - halfbox_m))
 
+
+class TestOutput(unittest.TestCase):
+    def test_output_name_uncompressed(self):
+        capturedOutput = io.StringIO()
+        sys.stdout = capturedOutput
+        mock_args = Mock(data="emd_1305_averaged", map_file="emd_1305.map", compress=False, output=False,
+                         map_start=False)
+        cm.create_output(mock_args)
+        self.assertTrue(os.path.exists("emd_1305_averaged_nc.txt"))
+        self.assertTrue("not compressed" in capturedOutput.getvalue())
+
+    def test_output_name_compressed(self):
+        capturedOutput = io.StringIO()
+        sys.stdout = capturedOutput
+        mock_args = Mock(data="emd_1305_averaged", map_file="emd_1305.map", compress=True, output=False,
+                         map_start=False)
+        cm.create_output(mock_args)
+        self.assertTrue(os.path.exists("emd_1305_averaged_c.txt"))
+        self.assertTrue("is compressed" in capturedOutput.getvalue())
+
+    def test_output_name_specified_nc(self):
+        capturedOutput = io.StringIO()
+        sys.stdout = capturedOutput
+        mock_args = Mock(data="emd_1305_averaged", map_file="emd_1305.map", compress=False, output="rm_nc",
+                         map_start=False)
+        cm.create_output(mock_args)
+        self.assertTrue(os.path.exists("rm_nc.txt"))
+        self.assertTrue("not compressed" in capturedOutput.getvalue())
+
+    def test_output_name_specified_c(self):
+        capturedOutput = io.StringIO()
+        sys.stdout = capturedOutput
+        mock_args = Mock(data="emd_1305_averaged", map_file="emd_1305.map", compress=True, output="rm_c",
+                         map_start=False)
+        cm.create_output(mock_args)
+        self.assertTrue(os.path.exists("rm_c.txt"))
+        self.assertTrue("is compressed" in capturedOutput.getvalue())
+
+    def test_print_map_start(self):
+        capturedOutput = io.StringIO()
+        sys.stdout = capturedOutput
+
+        mock_args = Mock(data="emd_1305_averaged", map_file="emd_1305.map", compress=False, output="rm_nc_2",
+                         map_start=True)
+        cm.create_output(mock_args)
+        self.assertEqual("nxstart: -162\nnystart: -162\nnzstart: -162\n", capturedOutput.getvalue()[-42::])
+
+
+# todo:
+class TestParser(unittest.TestCase):
+    # @mock.patch('combine_modules.parse_args', return_value=argparse.Namespace(
+    #    data="emd_1305_averaged")) #map_file="emd_1305.map"
+    def test_emdata_name(self):
+        pass
 
 if __name__ == "__main__":
     # Argparse
