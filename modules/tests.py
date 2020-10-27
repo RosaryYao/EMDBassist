@@ -325,9 +325,9 @@ class TestEM(unittest.TestCase):
         # Tests to ensure only desired modes exist
         self.assertIsInstance(self.em.dy_mode, int)
         self.assertIn(self.em.dy_mode, [2, 4, 5, 9])
-        em_fn2 = "emd_1305_mode2.em"
-        em_fn4 = "emd_1305_mode4.em"
-        em_fn9 = "emd_1305_mode9.em"
+        em_fn2 = "tests/emd_1305_mode2.em"
+        em_fn4 = "tests/emd_1305_mode4.em"
+        em_fn9 = "tests/emd_1305_mode9.em"
         em2 = EM(em_fn2)
         em4 = EM(em_fn4)
         em9 = EM(em_fn9)
