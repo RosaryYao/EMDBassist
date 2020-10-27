@@ -336,7 +336,7 @@ class TestEM(unittest.TestCase):
         self.assertEqual(int(em9.dy_mode), 9)
 
         with self.assertRaises(NotImplementedError):
-            em_fn8 = "emd_1305_mode8.em"
+            em_fn8 = "tests/emd_1305_mode8.em"
             em8 = EM(em_fn8)
             print(em8.dy_mode)
 
