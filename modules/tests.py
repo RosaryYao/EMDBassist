@@ -24,7 +24,7 @@ from combine_modules import Map, Tbl, TblRow, EM
 # add a docstring so that on verbose test runs (python -m unittest tests -v) you can see what each test is about
 
 
-class rotation_matrices(unittest.TestCase):
+class TestRotationMatrices(unittest.TestCase):
 
     def setUp(self) -> None:
         self.a, self.b, self.c = math.radians(90), math.radians(90), math.radians(90)
@@ -36,6 +36,7 @@ class rotation_matrices(unittest.TestCase):
 
     def test_matrix_z(self):
         # anticlockwise rotation
+        # fixme: implies opposite convension
         _matrix = cm.matrix_z(self.a)
 
         test = _matrix.dot(self.dot)
@@ -145,6 +146,7 @@ class TestMap(unittest.TestCase):
         self.assertEqual(actual_origin, self.origin)
 
     def test_matrix(self):
+        # fixme: determine the test to carry out here
         origin_matrix = np.array([
             [0, 0, 0, self.origin[0]], [0, 0, 0, self.origin[1]], [0, 0, 0, self.origin[2]]
         ])
@@ -164,6 +166,7 @@ class TestMap(unittest.TestCase):
 
 class TestTbl(unittest.TestCase):
     def test_row_col_number(self):
+        # todo: there is test here
         with open("emd_1305_averaged.tbl", "r") as tbl:
             row1 = tbl.readline()
             row2 = tbl.readline()[0:(len(row1) - 2)]
@@ -171,6 +174,7 @@ class TestTbl(unittest.TestCase):
                 fake.write(row1 + row2)
         with self.assertRaises(ValueError):
             Tbl._get_data(self, fn="rm_fake_tbl.tbl")
+        self.assertTrue(False)
 
 
 class TestTblRow(unittest.TestCase):
@@ -195,6 +199,7 @@ class TestTblRow(unittest.TestCase):
             self.dx, self.dy, self.dz = float(first_line[3]), float(first_line[4]), float(first_line[5])
 
     def test_size(self):
+        # fixme: repeated and not pertinent to TblRow
         self.assertAlmostEqual(5.43, self.size[0], places=2)
         self.assertAlmostEqual(5.43, self.size[1], places=2)
         self.assertAlmostEqual(5.43, self.size[2], places=2)
@@ -277,6 +282,9 @@ class TestTblRow(unittest.TestCase):
         self.assertEqual(tblrow.dnarot, row_data[28])
 
     def test_transform(self):
+        # fixme: this is illustrative of a natural opportunity presented by tests to refactor
+        # the refactoring suggested is to introduce a function/method that computes translation
+        # once we test rotation & translation independently we can test concatenation manually
         random_row = self.get_random_row()
         tbl_row = TblRow(random_row, self.size)
         transform1 = tbl_row._transform()
@@ -309,9 +317,9 @@ class TestTblRow(unittest.TestCase):
 
     def test_printing(self):
         with open(self.tblfn, "r") as tbl:
-            row = tbl.readline().rstrip().split(" ")
+            row = TblRow(tbl.readline().rstrip().split(" "), voxel_size=self.size)
         self.assertEqual(
-            f"Tbl_row={str(row)}, voxel_size={str(self.size)}",
+            f"Tbl_row={str(row.row)}, voxel_size={str(self.size)}",
             self.row.__str__()
         )
 
@@ -351,15 +359,12 @@ class TestEM(unittest.TestCase):
         self.assertTrue(
             re.match(rb"^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?$", self.em.volume_encoded))
 
-    # todo:
-    def test_not_compressed(self):
-        pass
-
     def test_zlib_compressed(self):
         data = self.em.volume_encoded_compressed
         data_binary = base64.b64decode(data)[:4]
         ascii_hex = binascii.b2a_hex(data_binary)
 
+        # todo: document and describe
         zlib_flag = [bytes("7801", "utf-8"), bytes("789c", "utf-8"), bytes("78da", "utf-8")]
         flag = 0
         if ascii_hex[0:4] in zlib_flag:
@@ -370,7 +375,7 @@ class TestEM(unittest.TestCase):
         self.assertEqual(self.em.volume_array.shape, (40, 40, 40))
 
 
-class Test_rearrange_matrix(unittest.TestCase):
+class TestRearrangeMatrix(unittest.TestCase):
     def setUp(self):
         mock_args = Mock(data="emd_1305_averaged", map_file="emd_1305.map")
         self.tbl_test, self.transformations_test = cm.rearrange_matrix(mock_args)
@@ -407,15 +412,16 @@ class Test_rearrange_matrix(unittest.TestCase):
 
 class TestOutput(unittest.TestCase):
     def test_output_name_uncompressed(self):
-        capturedOutput = io.StringIO()
-        sys.stdout = capturedOutput
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
         mock_args = Mock(data="emd_1305_averaged", map_file="emd_1305.map", compress=False, output=False,
                          map_start=False)
         cm.create_output(mock_args)
         self.assertTrue(os.path.exists("emd_1305_averaged_nc.txt"))
-        self.assertTrue("not compressed" in capturedOutput.getvalue())
+        self.assertTrue("not compressed" in captured_output.getvalue())
 
     def test_output_name_compressed(self):
+        # fixme: use under_score case (instead of camelCase)
         capturedOutput = io.StringIO()
         sys.stdout = capturedOutput
         mock_args = Mock(data="emd_1305_averaged", map_file="emd_1305.map", compress=True, output=False,
@@ -425,6 +431,7 @@ class TestOutput(unittest.TestCase):
         self.assertTrue("is compressed" in capturedOutput.getvalue())
 
     def test_output_name_specified_nc(self):
+        # fixme: use under_score case (instead of camelCase)
         capturedOutput = io.StringIO()
         sys.stdout = capturedOutput
         mock_args = Mock(data="emd_1305_averaged", map_file="emd_1305.map", compress=False, output="rm_nc",
@@ -434,6 +441,7 @@ class TestOutput(unittest.TestCase):
         self.assertTrue("not compressed" in capturedOutput.getvalue())
 
     def test_output_name_specified_c(self):
+        # fixme: use under_score case (instead of camelCase)
         capturedOutput = io.StringIO()
         sys.stdout = capturedOutput
         mock_args = Mock(data="emd_1305_averaged", map_file="emd_1305.map", compress=True, output="rm_c",
@@ -443,6 +451,7 @@ class TestOutput(unittest.TestCase):
         self.assertTrue("is compressed" in capturedOutput.getvalue())
 
     def test_print_map_start(self):
+        # fixme: use under_score case (instead of camelCase)
         capturedOutput = io.StringIO()
         sys.stdout = capturedOutput
 
