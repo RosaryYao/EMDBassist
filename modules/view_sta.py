@@ -234,7 +234,7 @@ class STA:
         return self.cols * self.rows * self.sections
 
     @property
-    def data(self):
+    def data(self): # todo: look here
         """Decode and unpack the data"""
         bin_data = base64.b64decode(self.raw_data)
         data = struct.unpack(f"{self.num_voxels}f", bin_data)
