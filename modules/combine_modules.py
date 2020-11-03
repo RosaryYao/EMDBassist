@@ -225,6 +225,7 @@ class EM:
     @property
     def volume_array(self):
         import numpy
+        # todo: float32 should vary, according to dy_mode?
         return numpy.array(self.volume_data, dtype=numpy.float32).reshape(self.nc, self.nr, self.ns)
 
 
