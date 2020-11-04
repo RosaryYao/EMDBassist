@@ -166,15 +166,13 @@ class TestMap(unittest.TestCase):
 
 class TestTbl(unittest.TestCase):
     def test_row_col_number(self):
-        # todo: there is test here
         with open("emd_1305_averaged.tbl", "r") as tbl:
             row1 = tbl.readline()
             row2 = tbl.readline()[0:(len(row1) - 2)]
-            with open("rm_fake_tbl.tbl", "w") as fake:
+            with open("rm_fake.tbl", "w") as fake:
                 fake.write(row1 + row2)
         with self.assertRaises(ValueError):
-            Tbl._get_data(self, fn="rm_fake_tbl.tbl")
-        self.assertTrue(False)
+            Tbl._get_data(self, fn="rm_fake.tbl")  # Because there are unequal number of elements in each row
 
 
 class TestTblRow(unittest.TestCase):
@@ -364,8 +362,16 @@ class TestEM(unittest.TestCase):
         data_binary = base64.b64decode(data)[:4]
         ascii_hex = binascii.b2a_hex(data_binary)
 
-        # todo: document and describe
-        zlib_flag = [bytes("7801", "utf-8"), bytes("789c", "utf-8"), bytes("78da", "utf-8")]
+        """
+        Recognizing zlib compression:
+        https://isc.sans.edu/forums/diary/Recognizing+ZLIB+Compression/25182/
+        The zlib generated data is structured according to RFC 1950. 
+        The first byte (0x78) is the compression method and flags
+        - 7801: No compression/low compression
+        - 789C: zlib default compression
+        - 78DA: zlib best compression
+        """
+        zlib_flag = [bytes("7801", "utf-8"), bytes("789C", "utf-8"), bytes("78DA", "utf-8")]
         flag = 0
         if ascii_hex[0:4] in zlib_flag:
             flag = 1
@@ -421,53 +427,57 @@ class TestOutput(unittest.TestCase):
         self.assertTrue("not compressed" in captured_output.getvalue())
 
     def test_output_name_compressed(self):
-        # fixme: use under_score case (instead of camelCase)
-        capturedOutput = io.StringIO()
-        sys.stdout = capturedOutput
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
         mock_args = Mock(data="emd_1305_averaged", map_file="emd_1305.map", compress=True, output=False,
                          map_start=False)
         cm.create_output(mock_args)
         self.assertTrue(os.path.exists("emd_1305_averaged_c.txt"))
-        self.assertTrue("is compressed" in capturedOutput.getvalue())
+        self.assertTrue("is compressed" in captured_output.getvalue())
 
     def test_output_name_specified_nc(self):
-        # fixme: use under_score case (instead of camelCase)
-        capturedOutput = io.StringIO()
-        sys.stdout = capturedOutput
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
         mock_args = Mock(data="emd_1305_averaged", map_file="emd_1305.map", compress=False, output="rm_nc",
                          map_start=False)
         cm.create_output(mock_args)
         self.assertTrue(os.path.exists("rm_nc.txt"))
-        self.assertTrue("not compressed" in capturedOutput.getvalue())
+        self.assertTrue("not compressed" in captured_output.getvalue())
 
     def test_output_name_specified_c(self):
-        # fixme: use under_score case (instead of camelCase)
-        capturedOutput = io.StringIO()
-        sys.stdout = capturedOutput
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
         mock_args = Mock(data="emd_1305_averaged", map_file="emd_1305.map", compress=True, output="rm_c",
                          map_start=False)
         cm.create_output(mock_args)
         self.assertTrue(os.path.exists("rm_c.txt"))
-        self.assertTrue("is compressed" in capturedOutput.getvalue())
+        self.assertTrue("is compressed" in captured_output.getvalue())
 
     def test_print_map_start(self):
-        # fixme: use under_score case (instead of camelCase)
-        capturedOutput = io.StringIO()
-        sys.stdout = capturedOutput
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
 
         mock_args = Mock(data="emd_1305_averaged", map_file="emd_1305.map", compress=False, output="rm_nc_2",
                          map_start=True)
         cm.create_output(mock_args)
-        self.assertEqual("nxstart: -162\nnystart: -162\nnzstart: -162\n", capturedOutput.getvalue()[-42::])
+        self.assertEqual("nxstart: -162\nnystart: -162\nnzstart: -162\n", captured_output.getvalue()[-42::])
 
 
 # todo:
-class TestParser(unittest.TestCase):
-    # @mock.patch('combine_modules.parse_args', return_value=argparse.Namespace(
-    #    data="emd_1305_averaged")) #map_file="emd_1305.map"
-    def test_emdata_name(self):
-        pass
+class Test_Parser(unittest.TestCase):
 
+    def test_emdata_name(self):
+        # input_arguments = ["--data emd_1305_averaged -m emd_1305.map"]
+        input_arguments = ["--data", "emd_1305_averaged", "--map_file", "emd_1305.map"]
+        args = cm.parse_args(input_arguments)
+        print(args.map_file)
+        print(args.data)
+        #print(args.output)
+        #print(args.compress)
+        #print(args.map_start)
+
+
+"""
 if __name__ == "__main__":
     # Argparse
     parser = argparse.ArgumentParser()
@@ -475,3 +485,4 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--tbl", metavar="", required=True, help="the Dynamo .tbl file")
     args = parser.parse_args()
     unittest.main(args)
+"""

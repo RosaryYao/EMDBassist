@@ -136,9 +136,6 @@ class Tbl:
                 raise ValueError("Number of columns are not equal on all rows!")
         return len(col_data[0]), len(row_data), col_data
 
-    def __setitem__(self, index, tbl_row):
-        self.rows[index] = tbl_row
-
     def __getitem__(self, index):
         return self.tbl_rows[index]
 
@@ -311,7 +308,7 @@ def create_output(args):
               "nzstart: " + str(map.origin[2]))
 
 
-def parse_args():
+def parse_args(args):
     # Argparse
     parser = argparse.ArgumentParser(
         description="output a single file that contains transformation data and voxel data. Default voxel data is "
@@ -321,15 +318,17 @@ def parse_args():
     parser.add_argument("-o", "--output", help="the output file name (.txt)")
     parser.add_argument("-c", "--compress", default=False, action="store_true",
                         help="Compress the voxel data [default: False]")
-    parser.add_argument("-m", "--map-file", metavar="", help="The original .map file")
+    parser.add_argument("-m", "--map-file", metavar="", required=True, help="The original .map file")
     parser.add_argument("-s", "--map-start", default=False, action="store_true",
                         help="Print the nxstart, nystart, nzstart of the original .map file")
-    args, unknown = parser.parse_known_args()
+    args = parser.parse_args()
+    # args, unknown = parser.parse_known_args()
+    # return parser.parse_args(args)
     return args
 
 
 def main():
-    args = parse_args()
+    args = parse_args(sys.argv[1:])
 
     if not os.path.exists(f"{args.data}.em"):
         raise ValueError(f"file '{args.data}.em does not exist")
