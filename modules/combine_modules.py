@@ -307,8 +307,11 @@ def create_output(args):
               "nystart: " + str(map.origin[1]) + "\n" +
               "nzstart: " + str(map.origin[2]))
 
+    if args.voxel_size:
+        print("voxel_size in x, y, z: " + str(map.voxel_size))
 
-def parse_args(args):
+
+def parse_args():
     # Argparse
     parser = argparse.ArgumentParser(
         description="output a single file that contains transformation data and voxel data. Default voxel data is "
@@ -321,50 +324,26 @@ def parse_args(args):
     parser.add_argument("-m", "--map-file", metavar="", required=True, help="The original .map file")
     parser.add_argument("-s", "--map-start", default=False, action="store_true",
                         help="Print the nxstart, nystart, nzstart of the original .map file")
+    parser.add_argument("-v", "--voxel-size", default=False, action="store_true",
+                        help="Print the voxel-size of the .map file")
     args = parser.parse_args()
-    # args, unknown = parser.parse_known_args()
-    # return parser.parse_args(args)
+
     return args
 
 
 def main():
-    args = parse_args(sys.argv[1:])
-
+    args = parse_args()
     if not os.path.exists(f"{args.data}.em"):
         raise ValueError(f"file '{args.data}.em does not exist")
     if not os.path.exists(f"{args.data}.tbl"):
         raise ValueError(f"file '{args.data}.tbl does not exist")
+    if not os.path.exists(f"{args.map_file}"):
+        raise ValueError(f"{args.map_file} does not exist")
 
     create_output(args)
     return 0
 
 
-"""
-def main(args):
-    parser = argparse.ArgumentParser(
-        description="output a single file that contains transformation data and voxel data. Default voxel data is "
-                    "zlib compressed")
-    parser.add_argument("-d", "--data", metavar="", required=True, help="the Dynamo .em and .tbl file.")
-    # parser.add_argument("-t", "--tbl", default=False, action="store_true", help="the Dynamo .tbl file")
-    parser.add_argument("-o", "--output", help="the output file name (.txt)")
-    parser.add_argument("-c", "--compress", default=False, action="store_true",
-                        help="Compress the voxel data [default: False]")
-    parser.add_argument("-m", "--map-file", metavar="", help="The original .map file")
-    parser.add_argument("-s", "--map-start", default=False, action="store_true",
-                        help="Print the nxstart, nystart, nzstart of the original .map file")
-    args, unknown = parser.parse_known_args()
-
-    if not os.path.exists(f"{args.data}.em"):
-        raise ValueError(f"file '{args.data}.em does not exist")
-    if not os.path.exists(f"{args.data}.tbl"):
-        raise ValueError(f"file '{args.data}.tbl does not exist")
-
-    create_output_files(args=args)
-    return 0
-"""
-
 # only run main if this script is being executed
 if __name__ == "__main__":
-    # print(sys.argv)
-    # sys.exit(main(sys.argv[1:]))
     sys.exit(main())

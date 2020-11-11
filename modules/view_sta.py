@@ -237,7 +237,7 @@ class STA:
     def data(self): # todo: look here
         """Decode and unpack the data"""
         bin_data = base64.b64decode(self.raw_data)
-        data = struct.unpack(f"{self.num_voxels}f", bin_data)
+        data = struct.unpack(f"{self.num_voxels}f", bin_data)  # f
         return numpy.array(data).reshape(self.cols, self.rows, self.sections)
 
     def transformed_stas(self, colour="#ff0000"):
@@ -332,7 +332,7 @@ def main():
                                      description='visualisation results of STA in the original volume')
     parser.add_argument('input_file', help='file containing transformed particles and STA')
     parser.add_argument('-m', '--map-file', help='original MAP file')
-    parser.add_argument('-c', '--contour-level', type=float, default=1.0,
+    parser.add_argument('-c', '--contour-level', type=float, default=1,
                         help='contour level used to generate the isosurface [default: 1.0]')
     parser.add_argument('-v', '--voxel-size', default=[1.0, 1.0, 1.0], nargs=3, type=float,
                         help='voxel sizes in x, y and z [default: 1.0 1.0 1.0]')

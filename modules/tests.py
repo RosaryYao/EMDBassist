@@ -23,6 +23,9 @@ from combine_modules import Map, Tbl, TblRow, EM
 # read more about TestCase https://docs.python.org/3/library/unittest.html#assert-methods
 # add a docstring so that on verbose test runs (python -m unittest tests -v) you can see what each test is about
 
+# Create a directory that stores the test output files.
+# Removed after all the tests were done
+
 
 class TestRotationMatrices(unittest.TestCase):
 
@@ -145,16 +148,6 @@ class TestMap(unittest.TestCase):
         actual_origin = (-162, -162, -162)
         self.assertEqual(actual_origin, self.origin)
 
-    def test_matrix(self):
-        # fixme: determine the test to carry out here
-        origin_matrix = np.array([
-            [0, 0, 0, self.origin[0]], [0, 0, 0, self.origin[1]], [0, 0, 0, self.origin[2]]
-        ])
-        actual_o_matrix = np.array([
-            [0, 0, 0, -162], [0, 0, 0, -162], [0, 0, 0, -162]
-        ])
-        self.assertTrue(np.allclose(origin_matrix, actual_o_matrix))
-
     def test_voxel_size(self):
         self.voxel = self.map.voxel_size
         voxel_size = (self.voxel.x, self.voxel.y, self.voxel.z)
@@ -173,7 +166,7 @@ class TestTbl(unittest.TestCase):
                 fake.write(row1 + row2)
         with self.assertRaises(ValueError):
             Tbl._get_data(self, fn="rm_fake.tbl")  # Because there are unequal number of elements in each row
-
+        os.remove("rm_fake.tbl")
 
 class TestTblRow(unittest.TestCase):
     def setUp(self) -> None:
@@ -183,7 +176,6 @@ class TestTblRow(unittest.TestCase):
         self.map = Map("emd_1305.map")
         self.size = self.map.voxel_size.tolist()
         self.row = TblRow(self.tbl[0], self.size)
-        # self.voxel_size = self.map.voxel_size
         self.tblrow = TblRow(self.tbl[0], self.size)
         self.t = self.tblrow.transformation
         self.em = EM("emd_1305_averaged.em")
@@ -195,12 +187,6 @@ class TestTblRow(unittest.TestCase):
             self.tdrot, self.tilt, self.narot = float(first_line[6]), float(first_line[7]), float(first_line[8])
             self.ox, self.oy, self.oz = float(first_line[23]), float(first_line[24]), float(first_line[25])
             self.dx, self.dy, self.dz = float(first_line[3]), float(first_line[4]), float(first_line[5])
-
-    def test_size(self):
-        # fixme: repeated and not pertinent to TblRow
-        self.assertAlmostEqual(5.43, self.size[0], places=2)
-        self.assertAlmostEqual(5.43, self.size[1], places=2)
-        self.assertAlmostEqual(5.43, self.size[2], places=2)
 
     def test_box_size(self):
         self.assertAlmostEqual(40, self.box[0])
@@ -361,7 +347,6 @@ class TestEM(unittest.TestCase):
         data = self.em.volume_encoded_compressed
         data_binary = base64.b64decode(data)[:4]
         ascii_hex = binascii.b2a_hex(data_binary)
-
         """
         Recognizing zlib compression:
         https://isc.sans.edu/forums/diary/Recognizing+ZLIB+Compression/25182/
@@ -371,7 +356,7 @@ class TestEM(unittest.TestCase):
         - 789C: zlib default compression
         - 78DA: zlib best compression
         """
-        zlib_flag = [bytes("7801", "utf-8"), bytes("789C", "utf-8"), bytes("78DA", "utf-8")]
+        zlib_flag = [bytes("7801", "utf-8"), bytes("789c", "utf-8"), bytes("78da", "utf-8")]
         flag = 0
         if ascii_hex[0:4] in zlib_flag:
             flag = 1
@@ -425,6 +410,7 @@ class TestOutput(unittest.TestCase):
         cm.create_output(mock_args)
         self.assertTrue(os.path.exists("emd_1305_averaged_nc.txt"))
         self.assertTrue("not compressed" in captured_output.getvalue())
+        os.remove("emd_1305_averaged_nc.txt")
 
     def test_output_name_compressed(self):
         captured_output = io.StringIO()
@@ -434,6 +420,7 @@ class TestOutput(unittest.TestCase):
         cm.create_output(mock_args)
         self.assertTrue(os.path.exists("emd_1305_averaged_c.txt"))
         self.assertTrue("is compressed" in captured_output.getvalue())
+        os.remove("emd_1305_averaged_c.txt")
 
     def test_output_name_specified_nc(self):
         captured_output = io.StringIO()
@@ -443,6 +430,7 @@ class TestOutput(unittest.TestCase):
         cm.create_output(mock_args)
         self.assertTrue(os.path.exists("rm_nc.txt"))
         self.assertTrue("not compressed" in captured_output.getvalue())
+        os.remove("rm_nc.txt")
 
     def test_output_name_specified_c(self):
         captured_output = io.StringIO()
@@ -452,37 +440,90 @@ class TestOutput(unittest.TestCase):
         cm.create_output(mock_args)
         self.assertTrue(os.path.exists("rm_c.txt"))
         self.assertTrue("is compressed" in captured_output.getvalue())
+        os.remove("rm_c.txt")
 
     def test_print_map_start(self):
         captured_output = io.StringIO()
         sys.stdout = captured_output
 
         mock_args = Mock(data="emd_1305_averaged", map_file="emd_1305.map", compress=False, output="rm_nc_2",
-                         map_start=True)
+                         map_start=True, voxel_size=False)
         cm.create_output(mock_args)
-        self.assertEqual("nxstart: -162\nnystart: -162\nnzstart: -162\n", captured_output.getvalue()[-42::])
+        self.assertTrue("nxstart: -162\nnystart: -162\nnzstart: -162" in captured_output.getvalue())
+        os.remove("rm_nc_2.txt")
+
+    def test_print_voxel_size(self):
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+
+        mock_args = Mock(data="emd_1305_averaged", map_file="emd_1305.map", compress=False, output="rm_3",
+                         voxel_size=True)
+        cm.create_output(mock_args)
+        self.assertTrue("voxel_size in x, y, z: (5.43, 5.43, 5.43)" in captured_output.getvalue())
+        os.remove("rm_3.txt")
 
 
-# todo:
 class Test_Parser(unittest.TestCase):
+    def test_data_name_has_em_tbl_and_map(self):
+        """test that the file with {args.data}.em, {args.data}.tbl and {args.map_file} exist"""
+        sys.argv = ["something", "--data", "emd_1305_averaged", "--map-file", "emd_1305.map"]
+        args = cm.parse_args()
 
-    def test_emdata_name(self):
-        # input_arguments = ["--data emd_1305_averaged -m emd_1305.map"]
-        input_arguments = ["--data", "emd_1305_averaged", "--map_file", "emd_1305.map"]
-        args = cm.parse_args(input_arguments)
-        print(args.map_file)
-        print(args.data)
-        #print(args.output)
-        #print(args.compress)
-        #print(args.map_start)
+        self.assertTrue(os.path.exists(f"{args.data}.em"))
+        self.assertTrue(os.path.exists(f"{args.data}.tbl"))
+        self.assertTrue(os.path.exists(f"{args.map_file}"))
+        self.assertEqual(args.compress, 0)
+        self.assertEqual(args.map_start, 0)
+        self.assertEqual(args.voxel_size, 0)
+
+    def test_data_is_comrpessed(self):
+        """Test when '-c' or '--compress' given, its 'action' is true*. """
+        sys.argv = ["something", "--data", "emd_1305_averaged", "--map-file", "emd_1305.map", "--compress"]
+        args = cm.parse_args()
+        self.assertEqual(args.compress, 1)
+
+    def test_pirnt_origin(self):
+        """Test when '-s' given, print the origin of the .em data"""
+        sys.argv = ["something", "--data", "emd_1305_averaged", "--map-file", "emd_1305.map", "-s"]
+        args = cm.parse_args()
+        self.assertEqual(args.map_start, 1)
+
+    def test_print_voxel_size(self):
+        """Test when 'v' given, print the voxel_size of the .em data"""
+        sys.argv = ["something", "--data", "emd_1305_averaged", "--map-file", "emd_1305.map", "-v"]
+        args = cm.parse_args()
+        self.assertEqual(args.voxel_size, 1)
 
 
-"""
-if __name__ == "__main__":
-    # Argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-e", "--em", metavar="", required=True, help="the Dynamo .em file.")
-    parser.add_argument("-t", "--tbl", metavar="", required=True, help="the Dynamo .tbl file")
-    args = parser.parse_args()
-    unittest.main(args)
-"""
+class Test_Main(unittest.TestCase):
+    def test_emdata_not_in_path(self):
+        """Test whether the system raises ValueError if the given .em or .tbl file does not exist in the path"""
+        sys.argv = ["something", "--data", "tests/test_main_em_error", "--map-file", "emd_1305.map"]
+        with self.assertRaises(ValueError):
+            cm.main()
+
+    def test_tbl_not_in_path(self):
+        """Test whether the system raises ValueError if the given .tbl file does not exist in the path"""
+        sys.argv = ["something", "--data", "tests/test_main_tbl_error", "--map-file", "emd_1305_averaged.map"]
+        with self.assertRaises(ValueError):
+            cm.main()
+
+    def test_map_not_in_path(self):
+        sys.argv = ["something", "--data", "emd_1305_averaged", "--map-file", "emd_1305_averaged.map"]
+        with self.assertRaises(ValueError):
+            cm.main()
+
+    def test_calls_create_output_function(self):
+        """Test if main() is executed, create_output() is run"""
+        sys.argv = ["something", "--data", "emd_1305_averaged", "--map-file", "emd_1305.map", "--output", "rm_4"]
+        cm.main()
+        self.assertTrue(os.path.exists("rm_4.txt"))
+        os.remove("rm_4.txt")
+
+class Test_exit(unittest.TestCase):
+    def test_system_exit(self):
+        sys.argv = sys.argv = ["something", "--data", "emd_1305_averaged", "--map-file", "emd_1305.map", "--output", "rm_5"]
+        cm.main()
+        print(os.system(cm))
+        self.assertTrue(False)
+        # os.remove("rm_5.txt")
