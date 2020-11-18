@@ -41,6 +41,32 @@ https://wiki.dynamo.biozentrum.unibas.ch/w/index.php/Table_convention
 41  : eig1 "eigencoefficient" #1
 42  : eig2 "eigencoefficient" #2
 """
+import zlib
+
+"""
+Brigg's lab .motl field values
+1)     Cross-correlation coefficient
+2)     Not used
+3)     Not used
+4)     Subtomogram number (each subtomogram is named “subtomo_number”).
+5)     Tomogram number
+6)     Virus number
+7)     Tomogram number (this row is redundant for historical reasons)
+8)     x coordinate within the tomogram
+9)     y coordinate within the tomogram
+10)   z coordinate within the tomogram
+11)   x shift of the subtomogram
+12)   y shift of the subtomogram
+13)   z shift of the subtomogram
+14)   not used
+15)   not used
+16)   not used
+17)   Phi angle in degrees (third rotation, it is an in plane rotation)
+18)   Psi angle in degrees (first rotation, it is an in plane rotation)
+19)   Theta angle in degrees (second rotation, it is an out of plane rotation)
+20)   Class number (not relevant for our purpose)
+"""
+
 import argparse
 import base64
 import math
@@ -119,12 +145,33 @@ class Map:
         return mode, cols, rows, sections, data, origin, voxel_size
 
 
-class Tbl:
+class File:
     def __init__(self, fn):
         self.fn = fn
-        self.col, self.length, self.tbl_rows = self._get_data(fn)
+        self.cols, self.rows, self.col_data = self._get_data(fn)
         # Define a list of tbl_row
 
+    def _get_data(self, fn):
+        raise NotImplementedError
+
+    def __getitem__(self, index):
+        return self.col_data[index]
+
+
+class Motl(File):
+    def _get_data(self, fn):
+        with open(fn, "r") as f:
+            row_data = f.readlines()
+            col_data = [row.strip().split(",") for row in row_data]
+            try:
+                length_row = [len(row) for row in col_data]
+                assert sum(length_row) / len(length_row) == length_row[0]
+            except AssertionError:
+                raise ValueError("Number of columns are not equal on all rows!")
+        return len(col_data[0]), len(row_data), col_data
+
+
+class Tbl(File):
     def _get_data(self, fn):
         with open(fn, "r") as f:
             row_data = f.readlines()
@@ -136,8 +183,39 @@ class Tbl:
                 raise ValueError("Number of columns are not equal on all rows!")
         return len(col_data[0]), len(row_data), col_data
 
-    def __getitem__(self, index):
-        return self.tbl_rows[index]
+
+class MotlRow:
+    def __init__(self, motl_row, voxel_size=(1.0, 1.0, 1.0)):
+        self.row = motl_row
+        self.size = voxel_size
+        # change each element in the tbl_row into float
+        self.dx, self.dy, self.dz, self.tdrot, self.tilt, self.narot, \
+        self.x, self.y, self.z = self._get_data(motl_row)
+        self.transformation = self._transform()
+
+    def _get_data(self, tbl_row):
+        dx, dy, dz = float(self.row[10]), float(self.row[11]), float(self.row[12])
+        if dx != 0 or dy != 0 or dz != 0:
+            raise ValueError("shifts in x, y, z are note equal to zero")
+
+        tdrot, tilt, narot = float(self.row[17]), float(self.row[18]), float(self.row[16])
+        x, y, z = float(self.row[7]), float(self.row[8]), float(self.row[9])
+        return dx, dy, dz, tdrot, tilt, narot, x, y, z
+
+    # todo: Caution! Additional *self.size[i]. WHY???
+    def _transform(self):
+        rotation = rotate(math.radians(self.tdrot), math.radians(self.tilt), math.radians(self.narot))
+        # Since dx, dy and dz are zeros, try
+        translation = np.array(
+            [self.x * self.size[0],
+             self.y * self.size[1],
+             self.z * self.size[2]])
+
+        transformation = np.insert(rotation, 3, translation, axis=1)
+        return transformation
+
+    def __str__(self):
+        return f"Tbl_row={self.row}, voxel_size={self.size}"
 
 
 class TblRow:
@@ -226,11 +304,9 @@ class EM:
         return numpy.array(self.volume_data, dtype=numpy.float32).reshape(self.nc, self.nr, self.ns)
 
 
-def rearrange_matrix(args):
-    # args = parse_args()
-
+def rearrange_matrix_tbl(args):
     # Map information
-    map = Map(args.map_file)
+    map = Map(args.tomogram_file)
     map_origin = map.origin
     map_size = map.voxel_size.tolist()
     origin_m = np.array(
@@ -238,10 +314,10 @@ def rearrange_matrix(args):
          [0, 0, 0, map_origin[2] * map_size[2]]])
 
     # Tbl transformation
-    tbl = Tbl(f"{args.data}.tbl")
+    tbl = Tbl(f"{args.dynamo_files[1]}")
 
     # .em data shape
-    em = EM(f"{args.data}.em")
+    em = EM(f"{args.dynamo_files[0]}")
     box = em.volume_array.shape
     # Subtract half of the box_length
     half_box_m = np.array(
@@ -250,7 +326,7 @@ def rearrange_matrix(args):
 
     # A list contains the transformation of all particles
     transformations = []
-    for i in range(tbl.length):
+    for i in range(tbl.rows):
         tbl_row = TblRow(tbl[i], map_size)
         tbl_m = tbl_row.transformation
         transform_m = (tbl_m + origin_m - half_box_m)
@@ -259,13 +335,57 @@ def rearrange_matrix(args):
     return tbl, transformations
 
 
-def create_output(args):
+def rearrange_matrix_motl(args):
+    # todo: modify this script, especially args -> for .motl files.
+    # todo: change the endings of .em into .motl -> prevent confusion
+    # todo: check that map_t and map_s have the same voxel size
+    #  and origins
+
+    # Check that STA and tomogram have the same voxel-size
+    map_t = Map(args.tomogram_file)
+    map_s = Map(args.motl_files[0])
+    t_size = map_t.voxel_size
+    s_size = map_s.voxel_size
+    if t_size != s_size:
+        raise ValueError("STA map does not have the same voxel-size as the tomogram")
+
+    # Tomogram information
+    map_origin = map_t.origin
+    map_size = map_t.voxel_size.tolist()
+    origin_m = np.array(
+        [[0, 0, 0, map_origin[0] * map_size[0]], [0, 0, 0, map_origin[1] * map_size[1]],
+         [0, 0, 0, map_origin[2] * map_size[2]]])
+
+    # map_s shape
+    map_s = Map(args.motl_files[0])
+    shape = (map_s.cols, map_s.rows, map_s.sections)
+    half_box_m = np.array([
+        [0, 0, 0, 1 / 2 * shape[0] * map_size[0]],
+        [0, 0, 0, 1 / 2 * shape[1] * map_size[1]],
+        [0, 0, 0, 1 / 2 * shape[2] * map_size[2]]
+    ])
+
+    # motl transformation
+    motl = Motl(f"{args.motl_files[1]}")
+
+    # A list contains the transformation of all particles
+    transformations = []
+    for i in range(motl.rows):
+        motl_row = MotlRow(motl[i], map_size)
+        motl_m = motl_row.transformation
+        transform_m = (motl_m + origin_m - half_box_m)
+        transformations.append(transform_m.tolist())
+
+    return motl, transformations
+
+
+def create_output_tbl(args):
     # Output the text file
-    tbl, transformations = rearrange_matrix(args)
-    em = EM(f"{args.data}.em")
-    map = Map(f"{args.map_file}")
-    with open(f"{args.data}.txt", "w") as f:
-        for i in range(tbl.length):
+    tbl, transformations = rearrange_matrix_tbl(args)
+    em = EM(f"{args.dynamo_files[0]}")
+    map = Map(f"{args.tomogram_file}")
+    with open("output.txt", "w") as f:
+        for i in range(tbl.rows):
             line_to_write = str(i + 1) + "," \
                             + "".join(
                 str(f"{e},").replace("[", "").replace("]", "").replace(" ", "") for e in transformations[i]) \
@@ -287,20 +407,20 @@ def create_output(args):
 
     if not args.output:
         if output_flag == 1:
-            os.rename(rf"{args.data}.txt", rf"{args.data}_c.txt")
+            os.rename("output.txt", r"output_c.txt")
             print("Data is compressed.")
-            print(f"{args.data}_c.txt is created.")
+            print("output_c.txt is created.")
         elif output_flag == 0:
-            os.rename(rf"{args.data}.txt", rf"{args.data}_nc.txt")
+            os.rename(rf"output.txt", r"output_nc.txt")
             print("Data is not compressed.")
-            print(f"{args.data}_nc.txt is created.")
+            print("output_nc.txt is created.")
     elif args.output:
-        os.rename(rf"{args.data}.txt", rf"{args.output}.txt")
+        os.rename(rf"output.txt", rf"{args.output}")
         if output_flag == 0:
             print("Data is not compressed.")
         elif output_flag == 1:
             print("Data is compressed.")
-        print(f"{args.output}.txt" + " is created.")
+        print(f"{args.output}" + " is created.")
 
     if args.map_start:
         print("nxstart: " + str(map.origin[0]) + "\n" +
@@ -311,17 +431,97 @@ def create_output(args):
         print("voxel_size in x, y, z: " + str(map.voxel_size))
 
 
+def create_output_motl(args):
+    # Output the text file
+    motl, transformations = rearrange_matrix_motl(args)
+    # todo: have to edit here - encode the binary data from .map, eg emd_3465.map
+
+    map_s = Map(f"{args.motl_files[0]}")
+    map_t = Map(f"{args.tomogram_file}")
+    with open("output.txt", "w") as f:
+        for i in range(motl.rows):
+            line_to_write = str(i + 1) + "," \
+                            + "".join(
+                str(f"{e},").replace("[", "").replace("]", "").replace(" ", "") for e in transformations[i]) \
+                            + "0,0,0,1\n"
+            f.write(line_to_write)
+
+        f.write("Mode:" + "\t" + str(map_s.mode) + "\n")
+        f.write("Nc:" + "\t" + str(map_s.cols) + "\n")
+        f.write("Nr:" + "\t" + str(map_s.rows) + "\n")
+        f.write("Ns:" + "\t" + str(map_s.sections) + "\n")
+
+        # Encode the map_s data into strings - find the mode first (!= dynamo mode)
+        if map_s.mode == 2:
+            type_flag = "f"
+        elif map_s.mode == 1:
+            type_flag = "h"
+        elif map_s.mode == 3:
+            type_flag = "i"
+        elif map_s.mode == 4:
+            type_flag = "d"
+        else:
+            raise TypeError("The map mode is not supported yet!")
+
+        # Then encode the values into string
+        raw_data = map_s.data.flatten()
+        packed_data = struct.pack(f"{len(raw_data)}{type_flag}", *raw_data)
+        encoded_data = base64.b64encode(packed_data)
+
+        # uncompressed:0, compressed:1
+        output_flag = 0
+        if args.compress:
+            c_packed_data = zlib.compress(packed_data)
+            c_encoded_data = base64.b64encode(c_packed_data)
+            f.write(f"Data:\t{c_encoded_data.decode('utf-8')}")
+            output_flag = 1
+        else:
+            f.write(f"Data:\t{encoded_data.decode('utf-8')}")
+
+    if not args.output:
+        if output_flag == 1:
+            os.rename("output.txt", r"output_c.txt")
+            print("Data is compressed.")
+            print("output_c.txt is created.")
+        elif output_flag == 0:
+            os.rename(rf"output.txt", r"output_nc.txt")
+            print("Data is not compressed.")
+            print("output_nc.txt is created.")
+    elif args.output:
+        os.rename(rf"output.txt", rf"{args.output}")
+        if output_flag == 0:
+            print("Data is not compressed.")
+        elif output_flag == 1:
+            print("Data is compressed.")
+        print(f"{args.output}" + " is created.")
+
+    if args.map_start:
+        print("nxstart: " + str(map_t.origin[0]) + "\n" +
+              "nystart: " + str(map_t.origin[1]) + "\n" +
+              "nzstart: " + str(map_t.origin[2]))
+
+    if args.voxel_size:
+        print("voxel_size in x, y, z: " + str(map_t.voxel_size))
+
+
 def parse_args():
     # Argparse
     parser = argparse.ArgumentParser(
-        description="output a single file that contains transformation data and voxel data. Default voxel data is "
-                    "zlib compressed")
-    parser.add_argument("-d", "--data", metavar="", required=True, help="the Dynamo .em and .tbl file.")
-    # parser.add_argument("-t", "--tbl", default=False, action="store_true", help="the Dynamo .tbl file")
+        description="Output a single file that contains transformation data and voxel data. "
+                    "Default voxel data uncompressed. Now supported data source: Dynamo and .motl from Brigg's lab.")
+    # Input data from different sources
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("-dynamo", "--dynamo_files", nargs=2, metavar=("dynamo .em", "dynamo .tbl"),
+                       help="the Dynamo .em and .tbl file.")
+    group.add_argument("-motl", "--motl_files", nargs=2, metavar=("Brigg's .csv file", "Brigg's motl produced STa map"),
+                       help="the motl format files, include one STa map and one transformed .csv table from "
+                            "Brigg's lab (the transformed .csv should be produced by the R script")
+
+    # Optional arguments
     parser.add_argument("-o", "--output", help="the output file name (.txt)")
     parser.add_argument("-c", "--compress", default=False, action="store_true",
                         help="Compress the voxel data [default: False]")
-    parser.add_argument("-m", "--map-file", metavar="", required=True, help="The original .map file")
+    parser.add_argument("-t", "--tomogram-file", metavar="", required=True, help="The original .map file")
     parser.add_argument("-s", "--map-start", default=False, action="store_true",
                         help="Print the nxstart, nystart, nzstart of the original .map file")
     parser.add_argument("-v", "--voxel-size", default=False, action="store_true",
@@ -333,14 +533,27 @@ def parse_args():
 
 def main():
     args = parse_args()
-    if not os.path.exists(f"{args.data}.em"):
-        raise ValueError(f"file '{args.data}.em does not exist")
-    if not os.path.exists(f"{args.data}.tbl"):
-        raise ValueError(f"file '{args.data}.tbl does not exist")
-    if not os.path.exists(f"{args.map_file}"):
-        raise ValueError(f"{args.map_file} does not exist")
 
-    create_output(args)
+    if not os.path.exists(f"{args.tomogram_file}"):
+        raise ValueError(f"{args.tomogram_file} does not exist")
+
+    # todo: are there better ways?
+    if "-dynamo" in sys.argv or "--dynamo_files" in sys.argv:
+        for i in [0, 1]:
+            if not os.path.exists(f"{args.dynamo_files[i]}"):
+                raise ValueError(f"file {args.dynamo_files[i]} does not exist")
+
+        create_output_tbl(args)
+        print("Source file from Dynamo")
+
+    elif "-motl" in sys.argv or "--motl_files" in sys.argv:
+        for i in [0, 1]:
+            if not os.path.exists(f"{args.motl_files[i]}"):
+                raise ValueError(f"file {args.motl_files[i]} does not exist")
+
+        create_output_motl(args)
+        print("Source file from Brigg's lab")
+
     return 0
 
 
