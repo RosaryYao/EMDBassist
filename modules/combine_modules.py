@@ -81,8 +81,8 @@ import numpy as np
 # Define rotation matrices (anticlockwise)
 def matrix_z(theta):
     matrix = np.array([
-        [math.cos(theta), math.sin(theta), 0],
-        [-math.sin(theta), math.cos(theta), 0],
+        [math.cos(theta), -math.sin(theta), 0],
+        [math.sin(theta), math.cos(theta), 0],
         [0, 0, 1]
     ])
     return matrix
@@ -90,9 +90,9 @@ def matrix_z(theta):
 
 def matrix_y(theta):
     matrix = np.array([
-        [math.cos(theta), 0, -math.sin(theta)],
+        [math.cos(theta), 0, math.sin(theta)],
         [0, 1, 0],
-        [math.sin(theta), 0, math.cos(theta)]
+        [-math.sin(theta), 0, math.cos(theta)]
     ])
     return matrix
 
@@ -100,8 +100,8 @@ def matrix_y(theta):
 def matrix_x(theta):
     matrix = np.array([
         [1, 0, 0],
-        [0, math.cos(theta), math.sin(theta)],
-        [0, -math.sin(theta), math.cos(theta)]
+        [0, math.cos(theta), -math.sin(theta)],
+        [0, math.sin(theta), math.cos(theta)]
     ])
     return matrix
 
@@ -194,7 +194,7 @@ class MotlRow:
         self.transformation = self._transform()
 
     def _get_data(self, tbl_row):
-        dx, dy, dz = float(self.row[10]), float(self.row[11]), float(self.row[12])
+        dx, dy, dz = float(self.row[10]), float(self.row[11]), float(self.row[12])  # todo: fix here
         if dx != 0 or dy != 0 or dz != 0:
             raise ValueError("shifts in x, y, z are note equal to zero")
 
@@ -202,14 +202,32 @@ class MotlRow:
         x, y, z = float(self.row[7]), float(self.row[8]), float(self.row[9])
         return dx, dy, dz, tdrot, tilt, narot, x, y, z
 
-    # todo: Caution! Additional *self.size[i]. WHY???
     def _transform(self):
         rotation = rotate(math.radians(self.tdrot), math.radians(self.tilt), math.radians(self.narot))
         # Since dx, dy and dz are zeros, try
+        #translation = np.array(
+        #    [self.y * self.size[1],
+        #     self.x * self.size[0],
+        #     self.z * self.size[2]])
+
+        # todo: have to modify self.size
+        # self.size = [1.78/4, 1.78/4, 1.78/4]
         translation = np.array(
-            [self.x * self.size[0],
-             self.y * self.size[1],
-             self.z * self.size[2]])
+          [self.x * self.size[0],
+           self.y * self.size[1],
+           self.z * self.size[2]])
+
+        #translation = np.array(
+        #    [self.x,
+        #     self.y,
+        #     self.z]
+        #)
+
+        # translation = np.array([
+        #    self.x * 0.445,  # so now divided by 1.78/4
+        #    self.y * 0.445,
+        #    self.z * 0.445
+        # ])
 
         transformation = np.insert(rotation, 3, translation, axis=1)
         return transformation
@@ -240,6 +258,7 @@ class TblRow:
         transformation = np.insert(rotation, 3, [(self.x + self.dx * self.size[0]) * self.size[0],
                                                  (self.y + self.dy * self.size[0]) * self.size[1],
                                                  (self.z + self.dz * self.size[0]) * self.size[2]], axis=1)
+
         return transformation
 
     def __str__(self):
@@ -346,24 +365,38 @@ def rearrange_matrix_motl(args):
     map_s = Map(args.motl_files[0])
     t_size = map_t.voxel_size
     s_size = map_s.voxel_size
-    if t_size != s_size:
-        raise ValueError("STA map does not have the same voxel-size as the tomogram")
+    # todo: commented out this raise ValueError
+    #if t_size != s_size:
+    #    raise ValueError("STA map does not have the same voxel-size as the tomogram")
 
     # Tomogram information
     map_origin = map_t.origin
-    map_size = map_t.voxel_size.tolist()
+    t_map_size = t_size.tolist()
+    sta_map_size = s_size.tolist()
+    # map_size = [0.445, 0.445, 0.445]
     origin_m = np.array(
-        [[0, 0, 0, map_origin[0] * map_size[0]], [0, 0, 0, map_origin[1] * map_size[1]],
-         [0, 0, 0, map_origin[2] * map_size[2]]])
+        [[0, 0, 0, map_origin[0] * t_map_size[0]], [0, 0, 0, map_origin[1] * t_map_size[1]],
+         [0, 0, 0, map_origin[2] * t_map_size[2]]])
 
     # map_s shape
-    map_s = Map(args.motl_files[0])
     shape = (map_s.cols, map_s.rows, map_s.sections)
-    half_box_m = np.array([
-        [0, 0, 0, 1 / 2 * shape[0] * map_size[0]],
-        [0, 0, 0, 1 / 2 * shape[1] * map_size[1]],
-        [0, 0, 0, 1 / 2 * shape[2] * map_size[2]]
-    ])
+    #half_box_m = np.array([
+    #    [0, 0, 0, 1 / 2 * shape[0] * t_map_size[0]],
+    #    [0, 0, 0, 1 / 2 * shape[1] * t_map_size[1]],
+    #    [0, 0, 0, 1 / 2 * shape[2] * t_map_size[2]]
+    #])
+
+    #half_box_m = np.array([
+    #    [0, 0, 0, 1 / 2 * shape[0] * t_map_size[0]],
+    #    [0, 0, 0, 1 / 2 * shape[1] * t_map_size[1]],
+    #    [0, 0, 0, 1 / 2 * shape[2] * t_map_size[2]]
+    #])
+
+    # half_box_m = np.array([
+    #    [0, 0, 0, 1 / 2 * shape[0]],
+    #    [0, 0, 0, 1 / 2 * shape[1]],
+    #    [0, 0, 0, 1 / 2 * shape[2]]
+    # ])
 
     # motl transformation
     motl = Motl(f"{args.motl_files[1]}")
@@ -371,9 +404,10 @@ def rearrange_matrix_motl(args):
     # A list contains the transformation of all particles
     transformations = []
     for i in range(motl.rows):
-        motl_row = MotlRow(motl[i], map_size)
+        motl_row = MotlRow(motl[i], t_map_size)
         motl_m = motl_row.transformation
-        transform_m = (motl_m + origin_m - half_box_m)
+        # transform_m = (motl_m + origin_m   - half_box_m)
+        transform_m = (motl_m + origin_m)
         transformations.append(transform_m.tolist())
 
     return motl, transformations
@@ -506,6 +540,7 @@ def create_output_motl(args):
 
 def parse_args():
     # Argparse
+    # fixme: edit the names
     parser = argparse.ArgumentParser(
         description="Output a single file that contains transformation data and voxel data. "
                     "Default voxel data uncompressed. Now supported data source: Dynamo and .motl from Brigg's lab.")
