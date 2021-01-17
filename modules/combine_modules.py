@@ -42,6 +42,7 @@ https://wiki.dynamo.biozentrum.unibas.ch/w/index.php/Table_convention
 42  : eig2 "eigencoefficient" #2
 """
 import zlib
+from abc import ABC
 
 """
 Brigg's lab .motl field values
@@ -145,19 +146,46 @@ class Map:
         return mode, cols, rows, sections, data, origin, voxel_size
 
 
+"""
 class File:
     def __init__(self, fn):
         self.fn = fn
         self.cols, self.rows, self.col_data = self._get_data(fn)
-        # Define a list of tbl_row
 
     def _get_data(self, fn):
         raise NotImplementedError
 
     def __getitem__(self, index):
         return self.col_data[index]
+"""
 
 
+class Data:
+    """Read data from the given file"""
+
+    def __init__(self, fn):
+        self.fn = fn
+        self.cols, self.rows, self.col_data = self._get_data(fn)
+
+    def _get_data(self, fn):
+        with open(fn, "r") as f:
+            row_data = f.readlines()
+            if fn.endswith(".csv"):
+                col_data = [row.strip().split(",") for row in row_data]
+            if fn.endswith(".tbl"):
+                col_data = [row.strip().split(" ") for row in row_data]
+            try:
+                length_row = [len(row) for row in col_data]
+                assert sum(length_row) / len(length_row) == length_row[0]
+            except AssertionError:
+                raise ValueError("Number of columns are not equal on all rows!")
+        return len(col_data[0]), len(row_data), col_data
+
+    def __getitem__(self, index):
+        return self.col_data[index]
+
+
+"""
 class Motl(File):
     def _get_data(self, fn):
         with open(fn, "r") as f:
@@ -182,6 +210,7 @@ class Tbl(File):
             except AssertionError:
                 raise ValueError("Number of columns are not equal on all rows!")
         return len(col_data[0]), len(row_data), col_data
+"""
 
 
 class MotlRow:
@@ -190,10 +219,10 @@ class MotlRow:
         self.size = voxel_size
         # change each element in the tbl_row into float
         self.dx, self.dy, self.dz, self.tdrot, self.tilt, self.narot, \
-        self.x, self.y, self.z = self._get_data(motl_row)
+        self.x, self.y, self.z = self._get_data()
         self.transformation = self._transform()
 
-    def _get_data(self, tbl_row):
+    def _get_data(self):
         dx, dy, dz = float(self.row[10]), float(self.row[11]), float(self.row[12])  # todo: fix here
         if dx != 0 or dy != 0 or dz != 0:
             raise ValueError("shifts in x, y, z are note equal to zero")
@@ -205,29 +234,23 @@ class MotlRow:
     def _transform(self):
         rotation = rotate(math.radians(self.tdrot), math.radians(self.tilt), math.radians(self.narot))
         # Since dx, dy and dz are zeros, try
-        #translation = np.array(
+        # translation = np.array(
         #    [self.y * self.size[1],
         #     self.x * self.size[0],
         #     self.z * self.size[2]])
 
         # todo: have to modify self.size
         # self.size = [1.78/4, 1.78/4, 1.78/4]
+        # translation = np.array(
+        #  [self.x * self.size[0],
+        #   self.y * self.size[1],
+        #   self.z * self.size[2]])
+
         translation = np.array(
-          [self.x * self.size[0],
-           self.y * self.size[1],
-           self.z * self.size[2]])
-
-        #translation = np.array(
-        #    [self.x,
-        #     self.y,
-        #     self.z]
-        #)
-
-        # translation = np.array([
-        #    self.x * 0.445,  # so now divided by 1.78/4
-        #    self.y * 0.445,
-        #    self.z * 0.445
-        # ])
+            [self.x,
+             self.y,
+             self.z]
+        )
 
         transformation = np.insert(rotation, 3, translation, axis=1)
         return transformation
@@ -242,10 +265,10 @@ class TblRow:
         self.size = voxel_size
         # change each element in the tbl_row into float
         self.dx, self.dy, self.dz, self.tdrot, self.tilt, self.narot, \
-        self.x, self.y, self.z, self.dshift, self.daxis, self.dnarot = self._get_data(tbl_row)
+        self.x, self.y, self.z, self.dshift, self.daxis, self.dnarot = self._get_data()
         self.transformation = self._transform()
 
-    def _get_data(self, tbl_row):
+    def _get_data(self):
         dx, dy, dz = float(self.row[3]), float(self.row[4]), float(self.row[5])
         tdrot, tilt, narot = float(self.row[6]), float(self.row[7]), float(self.row[8])
         x, y, z = float(self.row[23]), float(self.row[24]), float(self.row[25])
@@ -333,7 +356,7 @@ def rearrange_matrix_tbl(args):
          [0, 0, 0, map_origin[2] * map_size[2]]])
 
     # Tbl transformation
-    tbl = Tbl(f"{args.dynamo_files[1]}")
+    tbl = Data(f"{args.dynamo_files[1]}")
 
     # .em data shape
     em = EM(f"{args.dynamo_files[0]}")
@@ -366,7 +389,7 @@ def rearrange_matrix_motl(args):
     t_size = map_t.voxel_size
     s_size = map_s.voxel_size
     # todo: commented out this raise ValueError
-    #if t_size != s_size:
+    # if t_size != s_size:
     #    raise ValueError("STA map does not have the same voxel-size as the tomogram")
 
     # Tomogram information
@@ -380,26 +403,9 @@ def rearrange_matrix_motl(args):
 
     # map_s shape
     shape = (map_s.cols, map_s.rows, map_s.sections)
-    #half_box_m = np.array([
-    #    [0, 0, 0, 1 / 2 * shape[0] * t_map_size[0]],
-    #    [0, 0, 0, 1 / 2 * shape[1] * t_map_size[1]],
-    #    [0, 0, 0, 1 / 2 * shape[2] * t_map_size[2]]
-    #])
-
-    #half_box_m = np.array([
-    #    [0, 0, 0, 1 / 2 * shape[0] * t_map_size[0]],
-    #    [0, 0, 0, 1 / 2 * shape[1] * t_map_size[1]],
-    #    [0, 0, 0, 1 / 2 * shape[2] * t_map_size[2]]
-    #])
-
-    # half_box_m = np.array([
-    #    [0, 0, 0, 1 / 2 * shape[0]],
-    #    [0, 0, 0, 1 / 2 * shape[1]],
-    #    [0, 0, 0, 1 / 2 * shape[2]]
-    # ])
 
     # motl transformation
-    motl = Motl(f"{args.motl_files[1]}")
+    motl = Data(f"{args.motl_files[1]}")
 
     # A list contains the transformation of all particles
     transformations = []
