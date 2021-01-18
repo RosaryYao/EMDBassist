@@ -42,7 +42,7 @@ https://wiki.dynamo.biozentrum.unibas.ch/w/index.php/Table_convention
 42  : eig2 "eigencoefficient" #2
 """
 import zlib
-from abc import ABC
+
 
 """
 Brigg's lab .motl field values
@@ -82,8 +82,8 @@ import numpy as np
 # Define rotation matrices (anticlockwise)
 def matrix_z(theta):
     matrix = np.array([
-        [math.cos(theta), -math.sin(theta), 0],
-        [math.sin(theta), math.cos(theta), 0],
+        [math.cos(theta), math.sin(theta), 0],
+        [-math.sin(theta), math.cos(theta), 0],
         [0, 0, 1]
     ])
     return matrix
@@ -91,9 +91,9 @@ def matrix_z(theta):
 
 def matrix_y(theta):
     matrix = np.array([
-        [math.cos(theta), 0, math.sin(theta)],
+        [math.cos(theta), 0, -math.sin(theta)],
         [0, 1, 0],
-        [-math.sin(theta), 0, math.cos(theta)]
+        [math.sin(theta), 0, math.cos(theta)]
     ])
     return matrix
 
@@ -101,8 +101,8 @@ def matrix_y(theta):
 def matrix_x(theta):
     matrix = np.array([
         [1, 0, 0],
-        [0, math.cos(theta), -math.sin(theta)],
-        [0, math.sin(theta), math.cos(theta)]
+        [0, math.cos(theta), math.sin(theta)],
+        [0, -math.sin(theta), math.cos(theta)]
     ])
     return matrix
 
@@ -146,19 +146,6 @@ class Map:
         return mode, cols, rows, sections, data, origin, voxel_size
 
 
-"""
-class File:
-    def __init__(self, fn):
-        self.fn = fn
-        self.cols, self.rows, self.col_data = self._get_data(fn)
-
-    def _get_data(self, fn):
-        raise NotImplementedError
-
-    def __getitem__(self, index):
-        return self.col_data[index]
-"""
-
 
 class Data:
     """Read data from the given file"""
@@ -185,34 +172,6 @@ class Data:
         return self.col_data[index]
 
 
-"""
-class Motl(File):
-    def _get_data(self, fn):
-        with open(fn, "r") as f:
-            row_data = f.readlines()
-            col_data = [row.strip().split(",") for row in row_data]
-            try:
-                length_row = [len(row) for row in col_data]
-                assert sum(length_row) / len(length_row) == length_row[0]
-            except AssertionError:
-                raise ValueError("Number of columns are not equal on all rows!")
-        return len(col_data[0]), len(row_data), col_data
-
-
-class Tbl(File):
-    def _get_data(self, fn):
-        with open(fn, "r") as f:
-            row_data = f.readlines()
-            col_data = [row.strip().split(" ") for row in row_data]
-            try:
-                length_row = [len(row) for row in col_data]
-                assert sum(length_row) / len(length_row) == length_row[0]
-            except AssertionError:
-                raise ValueError("Number of columns are not equal on all rows!")
-        return len(col_data[0]), len(row_data), col_data
-"""
-
-
 class MotlRow:
     def __init__(self, motl_row, voxel_size=(1.0, 1.0, 1.0)):
         self.row = motl_row
@@ -232,19 +191,11 @@ class MotlRow:
         return dx, dy, dz, tdrot, tilt, narot, x, y, z
 
     def _transform(self):
-        rotation = rotate(math.radians(self.tdrot), math.radians(self.tilt), math.radians(self.narot))
-        # Since dx, dy and dz are zeros, try
-        # translation = np.array(
-        #    [self.y * self.size[1],
-        #     self.x * self.size[0],
-        #     self.z * self.size[2]])
-
-        # todo: have to modify self.size
-        # self.size = [1.78/4, 1.78/4, 1.78/4]
-        # translation = np.array(
-        #  [self.x * self.size[0],
-        #   self.y * self.size[1],
-        #   self.z * self.size[2]])
+        matrix_z_inv = np.linalg.inv(matrix_z(math.radians(self.tdrot)))
+        matrix_x_inv = np.linalg.inv(matrix_x(math.radians(self.tilt)))
+        matrix_z_inv_2 = np.linalg.inv(matrix_z(math.radians(self.narot)))
+        rotation = matrix_z_inv.dot(matrix_x_inv).dot(matrix_z_inv_2)
+        # rotation = rotate(math.radians(self.tdrot), math.radians(self.tilt), math.radians(self.narot))
 
         translation = np.array(
             [self.x,
@@ -348,7 +299,7 @@ class EM:
 
 def rearrange_matrix_tbl(args):
     # Map information
-    map = Map(args.tomogram_file)
+    map = Map(args.tomogram_map_file)
     map_origin = map.origin
     map_size = map.voxel_size.tolist()
     origin_m = np.array(
@@ -384,7 +335,7 @@ def rearrange_matrix_motl(args):
     #  and origins
 
     # Check that STA and tomogram have the same voxel-size
-    map_t = Map(args.tomogram_file)
+    map_t = Map(args.tomogram_map_file)
     map_s = Map(args.motl_files[0])
     t_size = map_t.voxel_size
     s_size = map_s.voxel_size
@@ -423,7 +374,7 @@ def create_output_tbl(args):
     # Output the text file
     tbl, transformations = rearrange_matrix_tbl(args)
     em = EM(f"{args.dynamo_files[0]}")
-    map = Map(f"{args.tomogram_file}")
+    map = Map(f"{args.tomogram_map_file}")
     with open("output.txt", "w") as f:
         for i in range(tbl.rows):
             line_to_write = str(i + 1) + "," \
@@ -477,7 +428,7 @@ def create_output_motl(args):
     # todo: have to edit here - encode the binary data from .map, eg emd_3465.map
 
     map_s = Map(f"{args.motl_files[0]}")
-    map_t = Map(f"{args.tomogram_file}")
+    map_t = Map(f"{args.tomogram_map_file}")
     with open("output.txt", "w") as f:
         for i in range(motl.rows):
             line_to_write = str(i + 1) + "," \
@@ -562,7 +513,7 @@ def parse_args():
     parser.add_argument("-o", "--output", help="the output file name (.txt)")
     parser.add_argument("-c", "--compress", default=False, action="store_true",
                         help="Compress the voxel data [default: False]")
-    parser.add_argument("-t", "--tomogram-file", metavar="", required=True, help="The original .map file")
+    parser.add_argument("-m", "--tomogram-map-file", metavar="", required=True, help="The original .map file")
     parser.add_argument("-s", "--map-start", default=False, action="store_true",
                         help="Print the nxstart, nystart, nzstart of the original .map file")
     parser.add_argument("-v", "--voxel-size", default=False, action="store_true",
@@ -575,8 +526,8 @@ def parse_args():
 def main():
     args = parse_args()
 
-    if not os.path.exists(f"{args.tomogram_file}"):
-        raise ValueError(f"{args.tomogram_file} does not exist")
+    if not os.path.exists(f"{args.tomogram_map_file}"):
+        raise ValueError(f"{args.tomogram_map_file} does not exist")
 
     # todo: are there better ways?
     if "-dynamo" in sys.argv or "--dynamo_files" in sys.argv:

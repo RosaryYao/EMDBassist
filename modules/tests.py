@@ -44,8 +44,8 @@ class TestRotationMatrices(unittest.TestCase):
 
         test = _matrix.dot(self.dot)
         test2 = _matrix.dot(self.dot2)
-        expect = np.array([[0], [1], [0]])
-        expect2 = np.array([[1], [-1], [0]])
+        expect = np.array([[0], [-1], [0]])
+        expect2 = np.array([[-1], [1], [0]])
         self.assertTrue(np.allclose(test, expect))
         self.assertTrue(np.allclose(test2, expect2))
 
@@ -55,7 +55,7 @@ class TestRotationMatrices(unittest.TestCase):
         test = _matrix.dot(self.dot)
         test2 = _matrix.dot(self.dot2)
         expect = np.array([[1], [0], [0]])
-        expect2 = np.array([[-1], [0], [-1]])
+        expect2 = np.array([[-1], [0], [1]])
         self.assertTrue(np.allclose(test, expect))
         self.assertTrue(np.allclose(test2, expect2))
 
@@ -64,8 +64,8 @@ class TestRotationMatrices(unittest.TestCase):
 
         test = _matrix.dot(self.dot)
         test2 = _matrix.dot(self.dot2)
-        expect = np.array([[0], [0], [-1]])
-        expect2 = np.array([[0], [-1], [1]])
+        expect = np.array([[0], [0], [1]])
+        expect2 = np.array([[0], [-1], [-1]])
         self.assertTrue(np.allclose(test, expect))
         self.assertTrue(np.allclose(test2, expect2))
 
@@ -336,7 +336,7 @@ class TestMotlRow(unittest.TestCase):
     def setUp(self) -> None:
         self.map = Map("emd_3464.map")
         self.size = self.map.voxel_size.tolist()
-        motl_object = cm.Data("tests/motl_1_1t.csv")
+        motl_object = cm.Data("tests/motl_1_1t_test.csv")
         self.motl = motl_object.col_data
         num_particles = motl_object.rows
         self.motl_row = cm.MotlRow(self.motl[random.randint(0, num_particles)], self.size)
@@ -359,10 +359,20 @@ class TestMotlRow(unittest.TestCase):
         with self.assertRaises(ValueError):
             cm.MotlRow(motl[1], self.size)
 
-    def test_transformation(self):
-        self.assertEqual(self.t.shape, (3, 4))
-        self.assertTrue(np.allclose(cm.rotate(math.radians(self.motl_row.tdrot), math.radians(self.motl_row.tilt),
-                                              math.radians(self.motl_row.narot), convention="zxz"), self.t[:, :-1]))
+    def test_rotation(self):
+        self.assertEqual(self.t.shape, (3,4))
+        test_point = np.array([[-1], [-1], [0]])
+        # in motl_1_1t_test.csv used rotations 90, 90, 90 in degrees.
+        expect = np.array([[0], [1], [-1]])
+        row = self.motl[0]
+        # tdrot, tilt, narot = float(row[17]), float(row[18]), float(row[16])
+        motl_row = cm.MotlRow(row)
+        rotation = motl_row.transformation[:, 0:3]
+        print(rotation.dot(test_point))
+        print(expect)
+        self.assertTrue(np.allclose(rotation.dot(test_point), expect))
+
+    def test_translation(self):
         # voxel = 1.78 todo: no voxel_size considered in Motl?
         voxel = 1
         translation = np.array([
@@ -433,7 +443,7 @@ class TestEM(unittest.TestCase):
 
 class TestRearrangeMatrix_tbl(unittest.TestCase):
     def setUp(self):
-        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-file",
+        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-map-file",
                     "emd_1305.map"]
         args = cm.parse_args()
         self.tbl_test, self.transformations_test_tbl = cm.rearrange_matrix_tbl(args)
@@ -469,13 +479,13 @@ class TestRearrangeMatrix_tbl(unittest.TestCase):
 
 class TestRearrangeMatrix_motl(unittest.TestCase):
     #def setUp(self) -> None:
-    #    sys.argv = ["something", "-motl", "emd_3465.map", "motl_1.csv", "--tomogram-file",
+    #    sys.argv = ["something", "-motl", "emd_3465.map", "motl_1.csv", "--tomogram-map-file",
     #                "emd_3464.map"]
     #    args = cm.parse_args()
     #    self.motl_test, self.transformations_test_motl = cm.rearrange_matrix_motl(args)
 
     #def test_map_t_map_s_same_voxel_size(self):
-    #    sys.argv = ["something", "-motl", "emd_3465.map", "tests/motl_1_1t.csv", "--tomogram-file",
+    #    sys.argv = ["something", "-motl", "emd_3465.map", "tests/motl_1_1t.csv", "--tomogram-map-file",
     #                "emd_1305.map"]
     #    args = cm.parse_args()
 
@@ -483,7 +493,7 @@ class TestRearrangeMatrix_motl(unittest.TestCase):
     #        cm.rearrange_matrix_motl(args)
 
     def test_motl_half_box(self):
-        sys.argv = ["something", "-motl", "emd_3465.map", "tests/motl_1_1t.csv", "--tomogram-file",
+        sys.argv = ["something", "-motl", "emd_3465.map", "tests/motl_1_1t.csv", "--tomogram-map-file",
                     "emd_3464.map"]
         args = cm.parse_args()
         motl, observes = cm.rearrange_matrix_motl(args)
@@ -510,7 +520,7 @@ class TestOutputMotl(unittest.TestCase):
     def test_output_name_uncompressed(self):
         captured_output = io.StringIO()
         sys.stdout = captured_output
-        sys.argv = ["something", "-motl", "emd_3465.map", "tests/motl_1_1t.csv", "--tomogram-file",
+        sys.argv = ["something", "-motl", "emd_3465.map", "tests/motl_1_1t.csv", "--tomogram-map-file",
                     "emd_3464.map"]
         args = cm.parse_args()
         cm.create_output_motl(args)
@@ -519,7 +529,7 @@ class TestOutputMotl(unittest.TestCase):
         os.remove("output_nc.txt")
 
     def test_check_output_data(self):
-        sys.argv = ["something", "-motl", "emd_3465.map", "tests/motl_1_1t.csv", "--tomogram-file",
+        sys.argv = ["something", "-motl", "emd_3465.map", "tests/motl_1_1t.csv", "--tomogram-map-file",
                     "emd_3464.map"]
         args = cm.parse_args()
         cm.create_output_motl(args)
@@ -532,7 +542,7 @@ class TestOutputMotl(unittest.TestCase):
         os.remove("output_nc.txt")
 
     def test_compressed(self):
-        sys.argv = ["something", "-motl", "emd_3465.map", "tests/motl_1_1t.csv", "--tomogram-file",
+        sys.argv = ["something", "-motl", "emd_3465.map", "tests/motl_1_1t.csv", "--tomogram-map-file",
                     "emd_3464.map", "-c"]
         args = cm.parse_args()
         cm.create_output_motl(args)
@@ -550,7 +560,7 @@ class TestOutputMotl(unittest.TestCase):
     def test_output_name_specified_nc(self):
         captured_output = io.StringIO()
         sys.stdout = captured_output
-        sys.argv = ["something", "-motl", "emd_3465.map", "tests/motl_1_1t.csv", "--tomogram-file",
+        sys.argv = ["something", "-motl", "emd_3465.map", "tests/motl_1_1t.csv", "--tomogram-map-file",
                     "emd_3464.map", "-o", "rm_nc.txt"]
         args = cm.parse_args()
         cm.create_output_motl(args)
@@ -561,7 +571,7 @@ class TestOutputMotl(unittest.TestCase):
     def test_output_name_specified_c(self):
         captured_output = io.StringIO()
         sys.stdout = captured_output
-        sys.argv = ["something", "-motl", "emd_3465.map", "tests/motl_1_1t.csv", "--tomogram-file",
+        sys.argv = ["something", "-motl", "emd_3465.map", "tests/motl_1_1t.csv", "--tomogram-map-file",
                     "emd_3464.map", "-o", "rm_c.txt", "-c"]
         args = cm.parse_args()
         cm.create_output_motl(args)
@@ -572,7 +582,7 @@ class TestOutputMotl(unittest.TestCase):
     def test_print_map_start(self):
         captured_output = io.StringIO()
         sys.stdout = captured_output
-        sys.argv = ["something", "-motl", "emd_3465.map", "tests/motl_1_1t.csv", "--tomogram-file",
+        sys.argv = ["something", "-motl", "emd_3465.map", "tests/motl_1_1t.csv", "--tomogram-map-file",
                     "emd_3464.map", "-o", "rm_c.txt", "-c", "-s"]
         args = cm.parse_args()
         cm.create_output_motl(args)
@@ -582,7 +592,7 @@ class TestOutputMotl(unittest.TestCase):
     def test_print_voxel_size(self):
         captured_output = io.StringIO()
         sys.stdout = captured_output
-        sys.argv = ["something", "-motl", "emd_3465.map", "tests/motl_1_1t.csv", "--tomogram-file",
+        sys.argv = ["something", "-motl", "emd_3465.map", "tests/motl_1_1t.csv", "--tomogram-map-file",
                     "emd_3464.map", "-o", "rm_c.txt", "-c", "-s", "-v"]
         args = cm.parse_args()
         cm.create_output_motl(args)
@@ -594,7 +604,7 @@ class TestOutputTbl(unittest.TestCase):
     def test_output_name_uncompressed(self):
         captured_output = io.StringIO()
         sys.stdout = captured_output
-        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-file",
+        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-map-file",
                     "emd_1305.map", "-o", "rm_output_nc.txt"]
         args = cm.parse_args()
         cm.create_output_tbl(args)
@@ -605,7 +615,7 @@ class TestOutputTbl(unittest.TestCase):
     def test_output_name_compressed(self):
         captured_output = io.StringIO()
         sys.stdout = captured_output
-        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-file",
+        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-map-file",
                     "emd_1305.map", "-c", "-o", "rm_output_c.txt"]
         args = cm.parse_args()
         cm.create_output_tbl(args)
@@ -616,7 +626,7 @@ class TestOutputTbl(unittest.TestCase):
     def test_output_name_specified_nc(self):
         captured_output = io.StringIO()
         sys.stdout = captured_output
-        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-file",
+        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-map-file",
                     "emd_1305.map", "--output", "rm_nc.txt"]
         args = cm.parse_args()
         cm.create_output_tbl(args)
@@ -627,7 +637,7 @@ class TestOutputTbl(unittest.TestCase):
     def test_output_name_specified_c(self):
         captured_output = io.StringIO()
         sys.stdout = captured_output
-        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-file",
+        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-map-file",
                     "emd_1305.map", "--output", "rm_c.txt", "-c"]
         args = cm.parse_args()
         cm.create_output_tbl(args)
@@ -638,7 +648,7 @@ class TestOutputTbl(unittest.TestCase):
     def test_print_map_start(self):
         captured_output = io.StringIO()
         sys.stdout = captured_output
-        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-file",
+        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-map-file",
                     "emd_1305.map", "--output", "rm_nc_2.txt", "-s"]
         args = cm.parse_args()
         cm.create_output_tbl(args)
@@ -648,7 +658,7 @@ class TestOutputTbl(unittest.TestCase):
     def test_print_voxel_size(self):
         captured_output = io.StringIO()
         sys.stdout = captured_output
-        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-file",
+        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-map-file",
                     "emd_1305.map", "--output", "rm_3.txt", "-v"]
         args = cm.parse_args()
         cm.create_output_tbl(args)
@@ -659,23 +669,23 @@ class TestOutputTbl(unittest.TestCase):
 class Test_Parser(unittest.TestCase):
     def test_dynamo_files_assigned_correctly(self):
         """test that the file with {args.data}.em, {args.data}.tbl and {args.map_file} exist"""
-        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-file", "emd_1305.map"]
+        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-map-file", "emd_1305.map"]
         args = cm.parse_args()
 
         self.assertTrue(os.path.exists(f"{args.dynamo_files[0]}"))
         self.assertTrue(os.path.exists(f"{args.dynamo_files[1]}"))
         # print(f"{args.dynamo_files}")
-        self.assertTrue(os.path.exists(f"{args.tomogram_file}"))
+        self.assertTrue(os.path.exists(f"{args.tomogram_map_file}"))
         self.assertEqual(args.compress, 0)
         self.assertEqual(args.map_start, 0)
         self.assertEqual(args.voxel_size, 0)
 
     def test_motl_files_assigned_correctly(self):
-        sys.argv = ["something", "-motl", "emd_3465.map", "tests/motl_1_1t.csv", "--tomogram-file", "emd_3464.map"]
+        sys.argv = ["something", "-motl", "emd_3465.map", "tests/motl_1_1t.csv", "--tomogram-map-file", "emd_3464.map"]
         args = cm.parse_args()
         self.assertTrue(os.path.exists(f"{args.motl_files[0]}"))
         self.assertTrue(os.path.exists(f"{args.motl_files[1]}"))
-        self.assertTrue(os.path.exists(f"{args.tomogram_file}"))
+        self.assertTrue(os.path.exists(f"{args.tomogram_map_file}"))
         self.assertEqual(args.compress, 0)
         self.assertEqual(args.map_start, 0)
         self.assertEqual(args.voxel_size, 0)
@@ -686,25 +696,25 @@ class Test_Parser(unittest.TestCase):
             cm.parse_args()
 
     def test_required_input_data_missing_one(self):
-        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "-t", "emd_1305.map"]
+        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "-m", "emd_1305.map"]
         with self.assertRaises(AssertionError):
             cm.parse_args()
 
     def test_data_is_compressed(self):
         """Test when '-c' or '--compress' given, its 'action' is true*. """
-        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-file", "emd_1305.map", "--compress"]
+        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-map-file", "emd_1305.map", "--compress"]
         args = cm.parse_args()
         self.assertEqual(args.compress, 1)
 
     def test_print_origin(self):
         """Test when '-s' given, print the origin of the .em data"""
-        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-file", "emd_1305.map", "-s"]
+        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-map-file", "emd_1305.map", "-s"]
         args = cm.parse_args()
         self.assertEqual(args.map_start, 1)
 
     def test_print_voxel_size(self):
         """Test when 'v' given, print the voxel_size of the .em data"""
-        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-file", "emd_1305.map", "-v"]
+        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-map-file", "emd_1305.map", "-v"]
         args = cm.parse_args()
         self.assertEqual(args.voxel_size, 1)
 
@@ -714,14 +724,14 @@ class Test_Main(unittest.TestCase):
         """Test if the correct function is called"""
         captured_output = io.StringIO()
         sys.stdout = captured_output
-        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-file",
+        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-map-file",
                     "emd_1305.map", "--output", "rm_4.txt"]
         cm.main()
         os.path.exists("rm_4.txt")
         os.remove("rm_4.txt")
         self.assertTrue("Source file from Dynamo" in captured_output.getvalue())
 
-        sys.argv = ["something", "-motl", "emd_3465.map", "tests/motl_1_1t.csv", "--tomogram-file",
+        sys.argv = ["something", "-motl", "emd_3465.map", "tests/motl_1_1t.csv", "--tomogram-map-file",
                     "emd_3464.map", "--output", "rm_4.txt"]
         cm.main()
         os.remove("rm_4.txt")
@@ -729,44 +739,44 @@ class Test_Main(unittest.TestCase):
 
     def test_unknown_source(self):
         # todo: modify, otherwise it tells nothing
-        sys.argv = ["something", "-unknown_source", "emd_3465.map", "tests/motl_1_1t.csv", "--tomogram-file", "emd_3464.map", "-o", "rm_6.txt"]
+        sys.argv = ["something", "-unknown_source", "emd_3465.map", "tests/motl_1_1t.csv", "--tomogram-map-file", "emd_3464.map", "-o", "rm_6.txt"]
         self.assertTrue(not os.path.exists("rm_6.txt"))
 
     def test_emdata_not_in_path(self):
         """Test whether the system raises ValueError if the given .em or .tbl file does not exist in the path"""
-        sys.argv = ["something", "-dynamo", "blabla.em", "emd_1305_averaged.tbl", "--tomogram-file",
+        sys.argv = ["something", "-dynamo", "blabla.em", "emd_1305_averaged.tbl", "--tomogram-map-file",
                     "emd_1305.map"]
         with self.assertRaises(ValueError):
             cm.main()
 
     def test_tbl_not_in_path(self):
         """Test whether the system raises ValueError if the given .tbl file does not exist in the path"""
-        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "blabla.tbl", "--tomogram-file",
+        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "blabla.tbl", "--tomogram-map-file",
                     "emd_1305.map"]
         with self.assertRaises(ValueError):
             cm.main()
 
     def test_map_not_in_path(self):
-        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-file",
+        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-map-file",
                     "blabla.map"]
         with self.assertRaises(ValueError):
             cm.main()
 
     def test_calls_create_output_function(self):
         """Test if main() is executed, create_output() is run"""
-        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-file",
+        sys.argv = ["something", "-dynamo", "emd_1305_averaged.em", "emd_1305_averaged.tbl", "--tomogram-map-file",
                     "emd_1305.map", "-o", "rm_5.txt"]
         cm.main()
         self.assertTrue(os.path.exists("rm_5.txt"))
         os.remove("rm_5.txt")
 
     def test_motl_map_not_in_path(self):
-        sys.argv = ["something", "-motl", "blabla.map", "motl_1.csv", "--tomogram-file", "emd_3464.map"]
+        sys.argv = ["something", "-motl", "blabla.map", "motl_1.csv", "--tomogram-map-file", "emd_3464.map"]
         with self.assertRaises(ValueError):
             cm.main()
 
     def test_motl_csv_not_in_path(self):
-        sys.argv = ["something", "-motl", "emd_3465.map", "blabla.csv", "--tomogram-file", "emd_3464.map"]
+        sys.argv = ["something", "-motl", "emd_3465.map", "blabla.csv", "--tomogram-map-file", "emd_3464.map"]
         with self.assertRaises(ValueError):
             cm.main()
 
