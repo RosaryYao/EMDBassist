@@ -71,9 +71,9 @@ def output_txt(average, table, compress=0, output=False):
         print(f"{output}" + " is created.")
 
 
-average = "emd_1305_averaged.em"
-table = "emd_1305_averaged.tbl"
-output_txt(average, table)
+#average = "emd_1305_averaged.em"
+#table = "emd_1305_averaged.tbl"
+#output_txt(average, table)
 
 
 
