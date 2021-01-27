@@ -148,7 +148,7 @@ class Map:
 
 
 class Data:
-    """Read data from the given file"""
+    """Read data from the given table file"""
 
     def __init__(self, fn):
         self.fn = fn
@@ -183,10 +183,10 @@ class MotlRow:
 
     def _get_data(self):
         dx, dy, dz = float(self.row[10]), float(self.row[11]), float(self.row[12])  # todo: fix here
-        if dx != 0 or dy != 0 or dz != 0:
-            raise ValueError("shifts in x, y, z are note equal to zero")
+        # if dx != 0 or dy != 0 or dz != 0:
+        #     raise ValueError("shifts in x, y, z are note equal to zero")
 
-        tdrot, tilt, narot = float(self.row[17]), float(self.row[18]), float(self.row[16])
+        tdrot, tilt, narot = float(self.row[17]), float(self.row[18]), float(self.row[16])  # mind the order
         x, y, z = float(self.row[7]), float(self.row[8]), float(self.row[9])
         return dx, dy, dz, tdrot, tilt, narot, x, y, z
 
@@ -198,9 +198,9 @@ class MotlRow:
         # rotation = rotate(math.radians(self.tdrot), math.radians(self.tilt), math.radians(self.narot))
 
         translation = np.array(
-            [self.x,
-             self.y,
-             self.z]
+            [self.x + self.dx,
+             self.y + self.dy,
+             self.z + self.dz]
         )
 
         transformation = np.insert(rotation, 3, translation, axis=1)
