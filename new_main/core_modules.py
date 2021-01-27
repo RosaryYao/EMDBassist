@@ -4,11 +4,17 @@ Also, it ignores calculation using data from tomograms
 """
 import os
 
-from average.dynamo_em import EM as dynamo_sta
-from table.dynamo_tbl import TblRow as dynamo_tbl
+from __init__ import TEST_DATA
 from average.brigg_map import Brigg_map as brigg_sta
+from average.dynamo_em import EM as dynamo_sta
 from table.brigg_motl import MotlRow as brigg_tbl
+from table.dynamo_tbl import TblRow as dynamo_tbl
 from table.read_table import Data
+
+motl_data = os.path.join(TEST_DATA, 'motl', 'file.txt')
+
+with open(motl_data) as _:
+    print(_.read())
 
 
 def output_txt(average, table, compress=0, output=False):
@@ -70,18 +76,6 @@ def output_txt(average, table, compress=0, output=False):
             print("Data is compressed.")
         print(f"{output}" + " is created.")
 
-
-#average = "emd_1305_averaged.em"
-#table = "emd_1305_averaged.tbl"
-#output_txt(average, table)
-
-
-
-
-
-
-
-
-
-
-
+# average = "emd_1305_averaged.em"
+# table = "emd_1305_averaged.tbl"
+# output_txt(average, table)

@@ -327,7 +327,7 @@ class MAP:
         \r\t{self.data}"""
 
 
-def main():
+def get_args():
     parser = argparse.ArgumentParser(prog='view_sta',
                                      description='visualisation results of STA in the original volume')
     parser.add_argument('input_file', help='file containing transformed particles and STA')
@@ -339,6 +339,10 @@ def main():
     parser.add_argument('-O', '--origin-index', default=[0, 0, 0], nargs=3, type=int,
                         help='the origin index; can be any triple of integers [default: 0, 0, 0]')
     args = parser.parse_args()
+    return args
+
+def main():
+    args = get_args()
     # the list of volumes to pass to display()
     volumes_to_display = list()
     # the sta output
