@@ -9,6 +9,7 @@ parser.add_argument('file', nargs="?")
 parser.add_argument('-T', '--table', help='table of coordinates')
 parser.add_argument('-A', '--average', help='averaged density')
 parser.add_argument('-t', '--tomogram', help=f"the tomogram")
+parser.add_argument("-o", "--output", help="the output file name (.txt)")
 
 
 def _check_file_types(args):
@@ -48,7 +49,7 @@ def parse_args():
             print(f"please ensure that {args.file}.<table extension> and {args.file}.<average extension> exist",
                   file=sys.stderr)
             print(f"alternatively, use -T/--table <file> -A/--average <file> to run", file=sys.stderr)
-            return 64 # os.EX_USAGE
+            return 64  # os.EX_USAGE
     else:
         try:
             assert args.table and args.average
@@ -56,4 +57,8 @@ def parse_args():
             print(f"both -T/--table and -A/--average must be used together", file=sys.stderr)
             return 64 # os.EX_USAGE
     # we are guaranteed we have reliable and consistent args
+
+    if not args.output:
+        args.output = f"{args.file}.txt"
+
     return args

@@ -84,7 +84,8 @@ def output_txt(average, table, compress=0, output=False):
 
 def main():
     args = parser.parse_args()
-    return os.EX_OK # constants which inform the OS on exit status
+    output_txt(args)
+    return 0  # constants which inform the OS on exit status
 
 
 if __name__ == "__main__":

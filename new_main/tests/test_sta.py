@@ -47,12 +47,23 @@ class TestCLI(unittest.TestCase):
 
     def test_output(self):
         """Ensure that output is handled correctly"""
-        sys.argv = shlex.split(f"{cmd} file") # output not specified
+        file_root = f"{os.path.join(TEST_DATA, 'motl')}/file"
+        print(file_root)
+        if platform.system() == "Windows":
+            file_root = os.path.normcase(file_root)
+        print(f"value of file_root: {file_root}")
+        # sys.argv = shlex.split(f"cmd {file_root}")
+        sys.argv = f"{cmd} {file_root}".split(" ")
         args = parse_args()
         # test
-        self.assertEqual(args.output, "")
+        self.assertEqual(args.output, f"{file_root}.txt")
         # user specified output
         output_fn = "my_output"
-        sys.argv = shlex.split(f"{cmd} file -o {output_fn}")
+        sys.argv = shlex.split(f"{cmd} {file_root} -o ''")
+        print(sys.argv)
         args = parse_args()
-        self.assertEqual(args.output, output_fn)
+        print(args)
+        #self.assertEqual(args.output, output_fn)
+
+    def test_compress(self):
+        self.asserTrue(False)
