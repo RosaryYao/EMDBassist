@@ -1,9 +1,8 @@
+import os
+import platform
 import shlex
 import sys
 import unittest
-import os
-import pathlib
-import platform
 
 from .. import TEST_DATA
 from ..parser import parse_args
@@ -31,7 +30,16 @@ class TestCLI(unittest.TestCase):
         """User explicitly specifies files"""
         file_root = f"{os.path.join(TEST_DATA, 'motl')}/file"
         sys.argv = shlex.split(f"cmd -T {file_root}.em -A {file_root}.map")
-        print(sys.argv)
         args = parse_args()
-        print(args)
+        self.assertEqual(args.table, f"{file_root}.em")
+        self.assertEqual(args.average, f"{file_root}.map")
+        # ensure
+        sys.argv = shlex.split(f"cmd -T {file_root}.em")
+        args = parse_args()
+        self.assertEqual(args, os.EX_USAGE)
 
+    def test_dynamo(self):
+        self.assertTrue(False)
+
+    def test_peet(self):
+        self.assertTrue(False)

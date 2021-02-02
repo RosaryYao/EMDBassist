@@ -48,4 +48,10 @@ def parse_args():
                   file=sys.stderr)
             print(f"alternatively, use -T/--table <file> -A/--average <file> to run", file=sys.stderr)
             sys.exit(0)
+    else:
+        try:
+            assert args.table and args.average
+        except AssertionError:
+            print(f"both -T/--table and -A/--average must be used together", file=sys.stderr)
+            return os.EX_USAGE
     return args
