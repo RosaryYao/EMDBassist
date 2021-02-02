@@ -3,13 +3,14 @@ The script that runs the modules, and output the text file?
 Also, it ignores calculation using data from tomograms
 """
 import os
+import sys
 
-from __init__ import TEST_DATA
-from average.brigg_map import Brigg_map as brigg_sta
-from average.dynamo_em import EM as dynamo_sta
-from table.brigg_motl import MotlRow as brigg_tbl
-from table.dynamo_tbl import TblRow as dynamo_tbl
-from table.read_table import Data
+from new_main import TEST_DATA, parser
+from new_main.average.brigg_map import Brigg_map as brigg_sta
+from new_main.average.dynamo_em import EM as dynamo_sta
+from new_main.table.brigg_motl import MotlRow as brigg_tbl
+from new_main.table.dynamo_tbl import TblRow as dynamo_tbl
+from new_main.table.read_table import Data
 
 motl_data = os.path.join(TEST_DATA, 'motl', 'file.txt')
 
@@ -79,3 +80,13 @@ def output_txt(average, table, compress=0, output=False):
 # average = "emd_1305_averaged.em"
 # table = "emd_1305_averaged.tbl"
 # output_txt(average, table)
+
+
+def main():
+    args = parser.parse_args()
+    print(args, file=sys.stderr)
+    return os.EX_OK # constants which inform the OS on exit status
+
+
+if __name__ == "__main__":
+    sys.exit(main())

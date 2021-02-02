@@ -8,6 +8,7 @@ parser = argparse.ArgumentParser(prog='cmd', description='Generic structure of s
 parser.add_argument('file', nargs="?")
 parser.add_argument('-T', '--table', help='table of coordinates')
 parser.add_argument('-A', '--average', help='averaged density')
+parser.add_argument('-t', '--tomogram', help=f"the tomogram")
 
 
 def _check_file_types(args):
@@ -23,6 +24,7 @@ def _check_file_types(args):
 
 
 def parse_args():
+    """Sanity checks on arguments"""
     args = parser.parse_args()
     if args.file:
         if platform.system() == "Windows":
@@ -54,4 +56,5 @@ def parse_args():
         except AssertionError:
             print(f"both -T/--table and -A/--average must be used together", file=sys.stderr)
             return os.EX_USAGE
+    # we are guaranteed we have reliable and consistent args
     return args
