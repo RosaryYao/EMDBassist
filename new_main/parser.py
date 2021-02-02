@@ -33,7 +33,6 @@ def parse_args():
             args.file = args.file.replace(os.sep, "/")
         # check for the presence of different file type s
         file_type = _check_file_types(args)
-        print(f"file type: {file_type}")
         # assuming Brigg's data
         if file_type == 0:
             args.table = f"{args.file}.em"
@@ -49,12 +48,12 @@ def parse_args():
             print(f"please ensure that {args.file}.<table extension> and {args.file}.<average extension> exist",
                   file=sys.stderr)
             print(f"alternatively, use -T/--table <file> -A/--average <file> to run", file=sys.stderr)
-            sys.exit(0)
+            return 64 # os.EX_USAGE
     else:
         try:
             assert args.table and args.average
         except AssertionError:
             print(f"both -T/--table and -A/--average must be used together", file=sys.stderr)
-            return os.EX_USAGE
+            return 64 # os.EX_USAGE
     # we are guaranteed we have reliable and consistent args
     return args
