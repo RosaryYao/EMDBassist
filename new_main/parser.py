@@ -28,7 +28,7 @@ def parse_args():
         if platform.system() == "Windows":
             args.file = args.file.replace(os.sep, "\\")
         else:
-            args.file = args.file.reaplce(os.sep, "/")
+            args.file = args.file.replace(os.sep, "/")
         # check for the presence of different file type s
         file_type = _check_file_types(args)
         print(f"file type: {file_type}")
