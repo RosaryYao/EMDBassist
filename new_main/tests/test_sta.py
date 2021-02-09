@@ -72,7 +72,7 @@ class TestCLI(unittest.TestCase):
 
     def test_output(self):
         """Ensure that output is handled correctly"""
-        file_root = f"{os.path.join(TEST_DATA, 'motl')}\\file"  # windows' format
+        file_root = f"{os.path.join(TEST_DATA, 'motl')}/file"  # windows' format
         print(file_root)
         if platform.system() == "Windows":
             file_root = os.path.normcase(file_root)
@@ -85,7 +85,7 @@ class TestCLI(unittest.TestCase):
 
         # user specified output
         output_fn = "my_output.txt"
-        sys.argv = shlex.split(f"{cmd} {file_root} -o ''")
+        # sys.argv = (f"{cmd} {file_root} -o {output_fn}"
         sys.argv = f"{cmd} {file_root} -o {output_fn}".split(" ")
         args = parse_args()
         self.assertEqual(args.output, output_fn)

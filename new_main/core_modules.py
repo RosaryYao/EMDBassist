@@ -18,8 +18,9 @@ with open(motl_data) as _:
     print(_.read())
 
 
-def output_txt(average, table, compress=0, output=False):
-    data = Data(table)
+def output_txt(args):  # todo: change arguments into args
+    data = Data(args.table)
+    average = args.average
     output_transformations = []
     if average.endswith(".em"):  # Dynamo STA
         sta = dynamo_sta(average)
@@ -47,7 +48,7 @@ def output_txt(average, table, compress=0, output=False):
         f.write("Nr:" + "\t" + str(sta.nr) + "\n")
         f.write("Ns:" + "\t" + str(sta.ns) + "\n")
 
-        if compress == 1:
+        if args.compress:
             compress_flag = 1
             if average.endswith(".em"):
                 f.write(sta.encoded_data_compressed)
@@ -60,7 +61,7 @@ def output_txt(average, table, compress=0, output=False):
             if average.endswith(".map"):
                 f.write(sta.encoded_data)
 
-    if not output:
+    if not args.output:
         if compress_flag == 1:
             os.rename("output.txt", r"output_c.txt")
             print("Data is compressed.")
@@ -69,23 +70,18 @@ def output_txt(average, table, compress=0, output=False):
             os.rename(rf"output.txt", r"output_nc.txt")
             print("Data is not compressed.")
             print("output_nc.txt is created.")
-    elif output:
-        os.rename(rf"output.txt", rf"{output}")
+    elif args.output:
+        os.rename(rf"output.txt", rf"{args.output}")
         if compress_flag == 0:
             print("Data is not compressed.")
         elif compress_flag == 1:
             print("Data is compressed.")
-        print(f"{output}" + " is created.")
-
-# average = "emd_1305_averaged.em"
-# table = "emd_1305_averaged.tbl"
-# output_txt(average, table)
-
+        print(f"{args.output}" + " is created.")
 
 def main():
     args = parser.parse_args()
     output_txt(args)
-    return 0  # constants which inform the OS on exit status
+    return sys.exit(0)  # constants which inform the OS on exit status
 
 
 if __name__ == "__main__":
