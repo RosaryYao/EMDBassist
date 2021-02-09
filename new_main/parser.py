@@ -8,17 +8,23 @@ parser = argparse.ArgumentParser(prog='cmd', description='Generic structure of s
 parser.add_argument('file', nargs="?")
 parser.add_argument('-T', '--table', help='table of coordinates')
 parser.add_argument('-A', '--average', help='averaged density')
-parser.add_argument('-t', '--tomogram', help=f"the tomogram")
+# parser.add_argument('-t', '--tomogram', help=f"the tomogram")
 parser.add_argument("-o", "--output", help="the output file name (.txt)")
+parser.add_argument("-c", "--compress", default=False, action="store_true",
+                    help="Compress the voxel data [default: False]")
+parser.add_argument("-s", "--tomogram-start",
+                    help="Print the nxstart, nystart, nzstart of the tomogram file in the x, y, z directions. Currently support .map and .mrc format")
+parser.add_argument("-v", "--voxel-size",
+                    help="Print the voxel-size of the tomogram file in the x, y, z directions. Currently support .map and .mrc")
 
 
 def _check_file_types(args):
     """returns indicator of which file type"""
-    if os.path.exists(f"{args.file}.em") and pathlib.Path(f"{args.file}.map").exists():  # Briggs
+    if os.path.exists(f"{args.file}.em") and os.path.exists(f"{args.file}.map"):  # Briggs
         return 0
-    elif os.path.exists(f"./{args.file}.tbl") and os.path.exists(f"./{args.file}.em"):  # Dynamo
+    elif os.path.exists(f"{args.file}.tbl") and os.path.exists(f"{args.file}.em"):  # Dynamo
         return 1
-    elif os.path.exists(f"./{args.file}.mod") and os.path.exists(f"./{args.file}.rec"):  # PEET
+    elif os.path.exists(f"{args.file}.mod") and os.path.exists(f"{args.file}.rec"):  # Briggs
         return 2
     else:
         return -1
@@ -55,10 +61,29 @@ def parse_args():
             assert args.table and args.average
         except AssertionError:
             print(f"both -T/--table and -A/--average must be used together", file=sys.stderr)
-            return 64 # os.EX_USAGE
+            return 64  # os.EX_USAGE
     # we are guaranteed we have reliable and consistent args
 
     if not args.output:
         args.output = f"{args.file}.txt"
+    else:
+        assert args.output
+
+    if args.compress:
+        print("Output encoded voxel data is compressed.")
+    else:
+        print("Output encoded voxel data is not compressed.")
+
+    if args.tomogram_start:
+        import mrcfile
+        with mrcfile.open(args.tomogram_start) as mrc:
+            start = int(mrc.header.nxstart), int(mrc.header.nystart), int(mrc.header.nzstart)
+            print(f"The map starts at {tuple(start)}.")
+
+    if args.voxel_size:
+        import mrcfile
+        with mrcfile.open(args.voxel_size) as mrc:
+            size = mrc.voxel_size
+            print(f"The voxel size of the tomogram is {size}.")
 
     return args
