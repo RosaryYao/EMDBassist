@@ -61,7 +61,8 @@ def parse_args():
             assert args.table and args.average
         except AssertionError:
             print(f"both -T/--table and -A/--average must be used together", file=sys.stderr)
-            return 64  # os.EX_USAGE
+            # sys.exit(1)  # os.EX_USAGE
+            return os._exit(1)
     # we are guaranteed we have reliable and consistent args
 
     if not args.output:

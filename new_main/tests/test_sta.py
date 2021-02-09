@@ -4,6 +4,7 @@ import platform
 import shlex
 import sys
 import unittest
+from unittest import mock
 
 from .. import TEST_DATA
 from ..parser import parse_args
@@ -35,10 +36,15 @@ class TestCLI(unittest.TestCase):
         args = parse_args()
         self.assertEqual(args.table, f"{self.file_root}.em")
         self.assertEqual(args.average, f"{self.file_root}.map")
-        # ensure
-        sys.argv = shlex.split(f"cmd -T {self.file_root}.em")
-        args = parse_args()
-        self.assertEqual(args, exit())  # todo: fix this...
+
+        # ensure AssertionError raised when only one specified file given
+        sys.argv = f"cmd -T {self.file_root}.em".split(" ")
+        #with self.assertRaises(AssertionError):
+        #    parse_args()
+        #self.assertEqual(parse_args(), os._exit(1))  # todo: fix this...
+        os._exit = mock.MagicMock()
+        parse_args()
+        assert os._exit.called
 
     def test_dynamo(self):
         self.file_root = f"{os.path.join(TEST_DATA, 'dynamo')}/file"
