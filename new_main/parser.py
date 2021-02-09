@@ -12,11 +12,11 @@ parser.add_argument('-A', '--average', help='averaged density')
 parser.add_argument("-o", "--output", help="the output file name (.txt)")
 parser.add_argument("-c", "--compress", default=False, action="store_true",
                     help="Compress the voxel data [default: False]")
-parser.add_argument("-s", "--tomogram-start",
-                    help="Print the nxstart, nystart, nzstart of the tomogram file in the x, y, z directions. Currently support .map and .mrc format")
-parser.add_argument("-v", "--voxel-size",
-                    help="Print the voxel-size of the tomogram file in the x, y, z directions. Currently support .map and .mrc")
-
+#parser.add_argument("-O", "--tomogram-origin",
+#                    help="Print the nxstart, nystart, nzstart of the tomogram file in the x, y, z directions. Currently support .map and .mrc format")
+#parser.add_argument("-v", "--voxel-size",
+#                    help="Print the voxel-size of the tomogram file in the x, y, z directions. Currently support .map and .mrc")
+# todo
 
 def _check_file_types(args):
     """returns indicator of which file type"""
@@ -75,16 +75,16 @@ def parse_args():
     else:
         print("Output encoded voxel data is not compressed.")
 
-    if args.tomogram_start:
-        import mrcfile
-        with mrcfile.open(args.tomogram_start) as mrc:
-            start = int(mrc.header.nxstart), int(mrc.header.nystart), int(mrc.header.nzstart)
-            print(f"The map starts at {tuple(start)}.")
+#    if args.tomogram_origin:
+#        import mrcfile
+#        with mrcfile.open(args.tomogram_origin) as mrc:
+#            start = int(mrc.header.nxstart), int(mrc.header.nystart), int(mrc.header.nzstart)
+#            print(f"The map starts at {tuple(start)}.")
 
-    if args.voxel_size:
-        import mrcfile
-        with mrcfile.open(args.voxel_size) as mrc:
-            size = mrc.voxel_size
-            print(f"The voxel size of the tomogram is {size}.")
+#    if args.voxel_size:
+#        import mrcfile
+#        with mrcfile.open(args.voxel_size) as mrc:
+#            size = mrc.voxel_size
+#            print(f"The voxel size of the tomogram is {size}.")
 
     return args

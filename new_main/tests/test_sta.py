@@ -102,6 +102,7 @@ class TestCLI(unittest.TestCase):
         sys.argv = f"{cmd} {self.file_root} -c".split(" ")
         self.assertTrue("not" not in captured_output.getvalue())
 
+"""
     def test_tomogram_origin(self):
         captured_output = io.StringIO()
         sys.stdout = captured_output
@@ -109,7 +110,7 @@ class TestCLI(unittest.TestCase):
         tomogram = f"{os.path.join(TEST_DATA, 'tomogram')}\emd_1305.map"
         self.assertTrue(os.path.exists(tomogram))
 
-        sys.argv = f"{cmd} {self.file_root} -s {tomogram}".split(" ")
+        sys.argv = f"{cmd} {self.file_root} -O {tomogram}".split(" ")
         parse_args()
         self.assertTrue("-162" in captured_output.getvalue())
 
@@ -120,3 +121,4 @@ class TestCLI(unittest.TestCase):
         sys.argv = f"{cmd} {self.file_root} -v {tomogram}".split(" ")
         parse_args()
         self.assertTrue("5.43" in captured_output.getvalue())
+"""
