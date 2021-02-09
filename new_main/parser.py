@@ -20,7 +20,7 @@ parser.add_argument("-c", "--compress", default=False, action="store_true",
 
 def _check_file_types(args):
     """returns indicator of which file type"""
-    if os.path.exists(f"{args.file}.em") and os.path.exists(f"{args.file}.map"):  # Briggs
+    if os.path.exists(f"{args.file}.em") and os.path.exists(f"{args.file}.map"):  # Motl
         return 0
     elif os.path.exists(f"{args.file}.tbl") and os.path.exists(f"{args.file}.em"):  # Dynamo
         return 1

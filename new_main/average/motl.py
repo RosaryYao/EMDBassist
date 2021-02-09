@@ -45,6 +45,11 @@ class Brigg_map:
         compressed_raw_data = zlib.compress(self.raw_data.flatten())
         return base64.b64encode(compressed_raw_data).decode("utf-8")
 
+
+class Average:
+    def __init__(self, args):
+        self._args = args
+
 #map = Brigg_map("emd_3465.map")
 #print(map.encoded_data[0:10])
 #print(map.encoded_data_compressed[0:10])

@@ -1,12 +1,12 @@
 import io
 import os
 import platform
-import shlex
 import sys
 import unittest
 from unittest import mock
 
-from .. import TEST_DATA
+from .. import TEST_DATA, core_modules
+from ..average import motl
 from ..parser import parse_args
 
 cmd = "tra"
@@ -39,9 +39,9 @@ class TestCLI(unittest.TestCase):
 
         # ensure AssertionError raised when only one specified file given
         sys.argv = f"cmd -T {self.file_root}.em".split(" ")
-        #with self.assertRaises(AssertionError):
+        # with self.assertRaises(AssertionError):
         #    parse_args()
-        #self.assertEqual(parse_args(), os._exit(1))  # todo: fix this...
+        # self.assertEqual(parse_args(), os._exit(1))  # todo: fix this...
         os._exit = mock.MagicMock()
         parse_args()
         assert os._exit.called
@@ -90,6 +90,15 @@ class TestCLI(unittest.TestCase):
         args = parse_args()
         self.assertEqual(args.output, output_fn)
 
+    def test_output_overwrite(self):
+        """Test that user cannot overwrite their output"""
+        # tra file
+        # tra file # again -> "error: output file already exists; use -f/--force to overwrite"
+        # tra file -f/--force # overwrite
+        # tra file -o output.txt # "error: output file already exists; use -f/--force to overwrite"
+        # tra file -f -o output.txt # overwrite
+        self.assertTrue(False)
+
     def test_compress(self):
         captured_output = io.StringIO()
         sys.stdout = captured_output
@@ -101,6 +110,7 @@ class TestCLI(unittest.TestCase):
         sys.stdout = captured_output
         sys.argv = f"{cmd} {self.file_root} -c".split(" ")
         self.assertTrue("not" not in captured_output.getvalue())
+
 
 """
     def test_tomogram_origin(self):
@@ -122,3 +132,37 @@ class TestCLI(unittest.TestCase):
         parse_args()
         self.assertTrue("5.43" in captured_output.getvalue())
 """
+
+
+class TestAverage(unittest.TestCase):
+    def setUp(self) -> None:
+        self.file_root = f"{os.path.join(TEST_DATA, 'motl')}/file"
+        if platform.system() == "Windows":
+            self.file_root = os.path.normcase(self.file_root)
+
+    def test_motl(self):
+        # tra file # file is a motl .em, .map
+        sys.argv = f"{cmd} {self.file_root}".split(" ")
+        args = parse_args()
+        cls = core_modules.get_average(args)
+        self.assertIsInstance(cls, motl.Average)
+
+    def test_dynamo(self):
+        self.assertTrue(False)
+
+    def test_peet(self):
+        self.assertTrue(False)
+
+
+class TestTable(unittest.TestCase):
+    def test_motl(self):
+        # -> motl.Table
+        self.assertTrue(False)
+
+    def test_dynamo(self):
+        # -> dynamo.Table
+        self.assertTrue(False)
+
+    def test_peet(self):
+        # -> peet.Table
+        self.assertTrue(False)

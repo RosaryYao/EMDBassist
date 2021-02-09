@@ -3,14 +3,16 @@ The script that runs the modules, and output the text file?
 Also, it ignores calculation using data from tomograms
 """
 import os
+import re
 import sys
 
 from new_main import TEST_DATA, parser
-from new_main.average.brigg_map import Brigg_map as brigg_sta
-from new_main.average.dynamo_em import EM as dynamo_sta
-from new_main.table.brigg_motl import MotlRow as brigg_tbl
+from new_main.average import motl
+from new_main.average.dynamo import EM as dynamo_sta
+from new_main.average.motl import Brigg_map as brigg_sta
+from new_main.table.motl import MotlRow as brigg_tbl
 from new_main.table.dynamo_tbl import TblRow as dynamo_tbl
-from new_main.table.read_table import Data
+from new_main.utils import Data
 
 motl_data = os.path.join(TEST_DATA, 'motl', 'file.txt')
 
@@ -19,6 +21,7 @@ with open(motl_data) as _:
 
 
 def output_txt(args):  # todo: change arguments into args
+    """Function that combines average and table for output"""
     data = Data(args.table)
     average = args.average
     output_transformations = []
@@ -78,9 +81,36 @@ def output_txt(args):  # todo: change arguments into args
             print("Data is compressed.")
         print(f"{args.output}" + " is created.")
 
+
+def get_average(args):
+    """Factory function which returns appropriate Average class"""
+    if re.match(r".*\.map$", args.average) and re.match(r".*\.em$", args.table):
+        return motl.Average(args)
+    else:
+        print(f"unknown average format '{args.average}'", file=sys.stderr)
+
+
+def get_table(args):
+    """Factory function which returns appropriate Table class"""
+    pass
+
+
+def get_output(avg, tbl, args):
+    """Factory function which returns appropriate Output class"""
+    pass
+
+
 def main():
     args = parser.parse_args()
-    output_txt(args)
+    # create the generic average object
+    avg = get_average(args)
+    # create the generic table object
+    tbl = get_table(args)
+    # create a generic output object
+    out = get_output(avg, tbl, args)
+    # write the output
+    out.write()
+    # output_txt(args)
     return sys.exit(0)  # constants which inform the OS on exit status
 
 
