@@ -7,6 +7,8 @@ from unittest import mock
 
 from .. import TEST_DATA, core_modules
 from ..average import motl
+from ..table import motl, dynamo, peet
+from ..utils import Read_table
 from ..parser import parse_args
 
 cmd = "tra"
@@ -155,6 +157,36 @@ class TestAverage(unittest.TestCase):
 
 
 class TestTable(unittest.TestCase):
+    def setUp(self) -> None:
+        self.table_em = f"{os.path.join(TEST_DATA, 'motl')}/motl_bin4_clathin_ref12_tomo_2.em"
+        self.table_tbl = f"{os.path.join(TEST_DATA, 'dynamo')}/emd_1305_averaged.tbl"
+        # self.table_mod = f"{os.path.join(TEST_DATA, 'peet')}/file"
+
+        if platform.system() == "Windows":
+            self.table_em = os.path.normcase(self.table_em)
+            self.table_tbl = os.path.normcase(self.table_tbl)
+            # self.table_mod = os.path.normcase(self.table_mod)
+
+    def test_read_table(self):
+        """Test that Read_table class reads table files correctly"""
+        self.assertTrue(os.path.exists(self.table_em))
+        self.assertTrue(os.path.exists(self.table_tbl))
+        # self.assertTrue(os.path.exists(self.table_mod))
+
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        dynamo_table = Read_table(self.table_tbl)
+        self.assertEqual(20, dynamo_table.rows)
+        self.assertEqual(35, dynamo_table.cols)
+        self.assertTrue("Dynamo" in captured_output.getvalue())
+
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        motl_table = Read_table(self.table_em)
+        self.assertEqual(20, motl_table.cols)
+        self.assertEqual(777, motl_table.rows)
+        self.assertTrue("Briggs" in captured_output.getvalue())
+
     def test_motl(self):
         # -> motl.Table
         self.assertTrue(False)

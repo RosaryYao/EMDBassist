@@ -11,18 +11,18 @@ from new_main.average import motl
 from new_main.average.dynamo import EM as dynamo_sta
 from new_main.average.motl import Brigg_map as brigg_sta
 from new_main.table.motl import MotlRow as brigg_tbl
-from new_main.table.dynamo_tbl import TblRow as dynamo_tbl
-from new_main.utils import Data
+from new_main.table.dynamo import TblRow as dynamo_tbl
+from new_main.utils import Read_table
 
 motl_data = os.path.join(TEST_DATA, 'motl', 'file.txt')
 
-with open(motl_data) as _:
+with open(motl_data) as _:  # todo: what is this?
     print(_.read())
 
 
 def output_txt(args):  # todo: change arguments into args
     """Function that combines average and table for output"""
-    data = Data(args.table)
+    data = Read_table(args.table)
     average = args.average
     output_transformations = []
     if average.endswith(".em"):  # Dynamo STA
