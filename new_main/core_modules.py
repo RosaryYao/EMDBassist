@@ -8,11 +8,13 @@ import sys
 
 from new_main import TEST_DATA, parser
 from new_main.average import motl
-from new_main.average.dynamo import EM as dynamo_sta
-from new_main.average.motl import Brigg_map as brigg_sta
-from new_main.table.motl import MotlRow as brigg_tbl
-from new_main.table.dynamo import TblRow as dynamo_tbl
-from new_main.utils import Read_table
+from new_main.average import dynamo
+# from new_main.average.motl import Brigg_map as brigg_sta
+from new_main.table import motl
+from new_main.table import dynamo
+# from new_main.table.motl import MotlRow as brigg_tbl
+# from new_main.table.dynamo import TblRow as dynamo_tbl
+from new_main import utils
 
 motl_data = os.path.join(TEST_DATA, 'motl', 'file.txt')
 
@@ -20,49 +22,53 @@ with open(motl_data) as _:  # todo: what is this?
     print(_.read())
 
 
-def output_txt(args):  # todo: change arguments into args
-    """Function that combines average and table for output"""
-    data = Read_table(args.table)
-    average = args.average
+def get_average(args):
+    """Factory function which returns appropriate Average class"""
+    if re.match(r".*\.map$", args.average) and re.match(r".*\.em$", args.table):
+        return motl.Average(args)
+    else:
+        print(f"unknown average format '{args.average}'", file=sys.stderr)
+
+
+def get_table(args):
+    """Factory function which returns appropriate Table class"""
+    if re.match(r".*\.map$", args.average) and re.match(r".*\.em$", args.table):
+        return motl.Table(args)
+    if re.match(r".*\.em$", args.average) and re.match(r".*\.tbl$", args.table):
+        return dynamo.Table(args)
+    else:
+        print(f"unknown table format '{args.table}'", file=sys.stderr)
+
+
+def get_output(avg, tbl, args):
+    """Factory function which returns appropriate Output class"""
+    average = get_average(avg)
+    table = utils.Read_table(tbl)
+
     output_transformations = []
-    if average.endswith(".em"):  # Dynamo STA
-        sta = dynamo_sta(average)
-        for i in range(data.rows):
-            row = dynamo_tbl(data[i]).transformation
-            output_transformations.append(row.tolist())
-        print("Data from Dynamo")
-    if average.endswith(".map"):  # Brigg's STA format, or EMDB STA format
-        sta = brigg_sta(average)
-        for i in range(data.rows):
-            row = brigg_tbl(data[i]).transformation
-            output_transformations.append(row.tolist())
-        print("Data from Brigg's lab")
+    for i in range(0, table.rows):
+        transformation = get_table(table[i]).transformation
+        output_transformations.append(transformation)
 
     with open("output.txt", "w") as f:
-        for i in range(data.rows):
+        for i in range(table.rows):
             line_to_write = str(i + 1) + "," \
                             + "".join(
                 str(f"{e},").replace("[", "").replace("]", "").replace(" ", "") for e in output_transformations[i]) \
                             + "0,0,0,1\n"
             f.write(line_to_write)
 
-        f.write("Mode:" + "\t" + str(sta.mode) + "\n")
-        f.write("Nc:" + "\t" + str(sta.nc) + "\n")
-        f.write("Nr:" + "\t" + str(sta.nr) + "\n")
-        f.write("Ns:" + "\t" + str(sta.ns) + "\n")
+        f.write("Mode:" + "\t" + str(average.mode) + "\n")
+        f.write("Nc:" + "\t" + str(average.nc) + "\n")
+        f.write("Nr:" + "\t" + str(average.nr) + "\n")
+        f.write("Ns:" + "\t" + str(average.ns) + "\n")
 
         if args.compress:
             compress_flag = 1
-            if average.endswith(".em"):
-                f.write(sta.encoded_data_compressed)
-            if average.endswith(".map"):
-                f.write(sta.encoded_data_compressed)
+            f.write(average.encoded_data_compressed)
         else:
             compress_flag = 0
-            if average.endswith(".em"):
-                f.write(sta.encoded_data)
-            if average.endswith(".map"):
-                f.write(sta.encoded_data)
+            f.write(average.encoded_data)
 
     if not args.output:
         if compress_flag == 1:
@@ -80,24 +86,6 @@ def output_txt(args):  # todo: change arguments into args
         elif compress_flag == 1:
             print("Data is compressed.")
         print(f"{args.output}" + " is created.")
-
-
-def get_average(args):
-    """Factory function which returns appropriate Average class"""
-    if re.match(r".*\.map$", args.average) and re.match(r".*\.em$", args.table):
-        return motl.Average(args)
-    else:
-        print(f"unknown average format '{args.average}'", file=sys.stderr)
-
-
-def get_table(args):
-    """Factory function which returns appropriate Table class"""
-    pass
-
-
-def get_output(avg, tbl, args):
-    """Factory function which returns appropriate Output class"""
-    pass
 
 
 def main():

@@ -5,10 +5,10 @@ import struct
 import base64
 
 
-class Brigg_map:
+class Average:
     def __init__(self, fn):
         self.fn = fn
-        self.mode, self.cols, self.rows, self.sections, self.raw_data, self.origin, self.voxel_size = self._get_data(fn)
+        self.mode, self.nc, self.nr, self.ns, self.raw_data, self.origin, self.voxel_size = self._get_data(fn)
         self.encoded_data = self.encode_data()
 
     def _get_data(self, fn):
@@ -44,11 +44,6 @@ class Brigg_map:
         import zlib
         compressed_raw_data = zlib.compress(self.raw_data.flatten())
         return base64.b64encode(compressed_raw_data).decode("utf-8")
-
-
-class Average:
-    def __init__(self, args):
-        self._args = args
 
 #map = Brigg_map("emd_3465.map")
 #print(map.encoded_data[0:10])

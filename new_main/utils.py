@@ -27,7 +27,7 @@ class Read_table:
         return len(col_data[0]), len(row_data), col_data
         """
 
-        # global col_data # todo: look at the result between global and local
+        global col_data  # todo: look at the result between global and local
         if self.fn.endswith(".em"):  # Briggs' motl table format
             print("Reading Briggs' motl table file...")
             with open(self.fn, "rb") as motl:

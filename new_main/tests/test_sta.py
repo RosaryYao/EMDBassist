@@ -1,9 +1,13 @@
 import io
+import math
 import os
 import platform
+import random
 import sys
 import unittest
 from unittest import mock
+
+import numpy as np
 
 from .. import TEST_DATA, core_modules
 from ..average import motl
@@ -156,7 +160,7 @@ class TestAverage(unittest.TestCase):
         self.assertTrue(False)
 
 
-class TestTable(unittest.TestCase):
+class Test_read_table(unittest.TestCase):
     def setUp(self) -> None:
         self.table_em = f"{os.path.join(TEST_DATA, 'motl')}/motl_bin4_clathin_ref12_tomo_2.em"
         self.table_tbl = f"{os.path.join(TEST_DATA, 'dynamo')}/emd_1305_averaged.tbl"
@@ -187,13 +191,104 @@ class TestTable(unittest.TestCase):
         self.assertEqual(777, motl_table.rows)
         self.assertTrue("Briggs" in captured_output.getvalue())
 
+        fake_table = f"{os.path.join(TEST_DATA, 'dynamo')}/dynamo_fake.tbl"
+        if platform.system() == "Windows":
+            fake_table = os.path.normcase(fake_table)
+
+        with self.assertRaises(ValueError):
+            Read_table(fake_table)
+
+
+class TestTable(unittest.TestCase):
     def test_motl(self):
-        # -> motl.Table
-        self.assertTrue(False)
+        table_em = f"{os.path.join(TEST_DATA, 'motl')}/motl_bin4_clathin_ref12_tomo_2.em"
+        table = Read_table(table_em)
+        i = random.randint(0, len(table.col_data))
+        print("random row number: " + str(i))
+        data = table[i]
+        print("content of the row: " + str(data))
+        motl_row = motl.Table(data)
+
+        self.assertTrue(-2*math.pi <= motl_row.tdrot <= 2*math.pi)
+        self.assertTrue(-2*math.pi <= motl_row.tilt <= 2*math.pi)
+        self.assertTrue(-2*math.pi <= motl_row.narot <= 2*math.pi)
+        self.assertTrue(type(motl_row.x) == float)
+        self.assertTrue(type(motl_row.y) == float)
+        self.assertTrue(type(motl_row.z) == float)
+
+        # test that rotation is correct
+        matrix_z_1 = np.array([
+            [math.cos(motl_row.tdrot), -math.sin(motl_row.tdrot), 0],
+            [math.sin(motl_row.tdrot), math.cos(motl_row.tdrot), 0],
+            [0, 0, 1]
+        ])
+
+        matrix_x = np.array([
+        [1, 0, 0],
+        [0, math.cos(motl_row.tilt), -math.sin(motl_row.tilt)],
+        [0, math.sin(motl_row.tilt), math.cos(motl_row.tilt)]
+        ])
+
+        matrix_z_2 = np.array([
+            [math.cos(motl_row.narot), -math.sin(motl_row.narot), 0],
+            [math.sin(motl_row.narot), math.cos(motl_row.narot), 0],
+            [0, 0, 1]
+        ])
+
+        expect_r = matrix_z_1.dot(matrix_x).dot(matrix_z_2)
+        actual_r = motl_row.transformation[:, 0:3]
+        self.assertTrue(np.allclose(expect_r, actual_r))
+
+        # test translation is correct
+        expect_tx = np.array([data[7]+data[10], data[8]+data[11], data[9]+data[12]])
+        actual_tx = motl_row.transformation[:, 3]
+        print(actual_tx)
+        print(expect_tx)
+        self.assertTrue(np.allclose(expect_tx, actual_tx))
 
     def test_dynamo(self):
-        # -> dynamo.Table
-        self.assertTrue(False)
+        table_tbl = f"{os.path.join(TEST_DATA, 'dynamo')}/emd_1305_averaged.tbl"
+        table = Read_table(table_tbl)
+        i = random.randint(0, len(table.col_data))
+        print("random row number: " + str(i))
+        data = table[i]
+        print("content of the row: " + str(data))
+        dynamo_row = dynamo.Table(data)
+
+        self.assertTrue(-360 <= dynamo_row.narot <= 360)
+        self.assertTrue(-360 <= dynamo_row.tdrot <= 360)
+        self.assertTrue(-360 <= dynamo_row.tilt <= 360)
+        self.assertTrue(type(dynamo_row.x) == float)
+        self.assertTrue(type(dynamo_row.y) == float)
+        self.assertTrue(type(dynamo_row.z) == float)
+
+        matrix_z_1 = np.array([
+            [math.cos(dynamo_row.tdrot), math.sin(dynamo_row.tdrot), 0],
+            [-math.sin(dynamo_row.tdrot), math.cos(dynamo_row.tdrot), 0],
+            [0, 0, 1]
+        ])
+
+        matrix_x = np.array([
+            [1, 0, 0],
+            [0, math.cos(dynamo_row.tilt), math.sin(dynamo_row.tilt)],
+            [0, -math.sin(dynamo_row.tilt), math.cos(dynamo_row.tilt)]
+        ])
+
+        matrix_z_2 = np.array([
+            [math.cos(dynamo_row.narot), math.sin(dynamo_row.narot), 0],
+            [-math.sin(dynamo_row.narot), math.cos(dynamo_row.narot), 0],
+            [0, 0, 1]
+        ])
+
+        expect_r = matrix_z_1.dot(matrix_x).dot(matrix_z_2)
+        actual_r = dynamo_row.transformation[:, 0:3]
+        self.assertTrue(np.allclose(expect_r, actual_r))
+
+        # test translation is correct
+        expect_tx = np.array([float(data[23]) + float(data[3]), float(data[24]) + float(data[4]), float(data[25]) + float(data[5])])
+        actual_tx = dynamo_row.transformation[:, 3]
+        self.assertTrue(np.allclose(expect_tx, actual_tx))
+
 
     def test_peet(self):
         # -> peet.Table

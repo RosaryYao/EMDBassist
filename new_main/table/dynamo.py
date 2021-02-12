@@ -52,7 +52,7 @@ def rotate(a, b, c, convention="zxz"):
         raise NameError("convention not supported!")
 
 
-class TblRow:
+class Table:
     def __init__(self, tbl_row, voxel_size=(1.0, 1.0, 1.0)):
         self.row = tbl_row
         self.size = voxel_size
@@ -63,14 +63,14 @@ class TblRow:
 
     def _get_data(self):
         dx, dy, dz = float(self.row[3]), float(self.row[4]), float(self.row[5])
-        tdrot, tilt, narot = float(self.row[6]), float(self.row[7]), float(self.row[8])
+        tdrot, tilt, narot = math.radians(float(self.row[6])), math.radians(float(self.row[7])), math.radians(float(self.row[8]))
         x, y, z = float(self.row[23]), float(self.row[24]), float(self.row[25])
         dshift, daxis, dnarot = float(self.row[26]), float(self.row[27]), float(self.row[28])
         return dx, dy, dz, tdrot, tilt, narot, x, y, z, dshift, daxis, dnarot
 
     # todo: Caution! Additional *self.size[i]. WHY???
     def _transform(self):
-        rotation = rotate(math.radians(self.tdrot), math.radians(self.tilt), math.radians(self.narot))
+        rotation = rotate(self.tdrot, self.tilt, self.narot)
         transformation = np.insert(rotation, 3, [(self.x + self.dx * self.size[0]) * self.size[0],
                                                  (self.y + self.dy * self.size[0]) * self.size[1],
                                                  (self.z + self.dz * self.size[0]) * self.size[2]], axis=1)

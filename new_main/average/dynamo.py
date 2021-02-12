@@ -3,7 +3,7 @@ import struct
 import base64
 
 
-class EM:
+class Average:
     """
     Dynamo produces subtomogram averaging volume data in .em format and stores binary data.
     See EMDB_mapFormat MODE at http://ftp.ebi.ac.uk/pub/databases/emdb/doc/Map-format/current/EMDB_map_format.pdf,
