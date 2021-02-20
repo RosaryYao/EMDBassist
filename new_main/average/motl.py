@@ -4,6 +4,8 @@ import mrcfile
 import struct
 import base64
 
+import numpy
+
 
 class Average:
     def __init__(self, fn):
@@ -12,13 +14,13 @@ class Average:
         self.encoded_data = self.encode_data()
 
     def _get_data(self, fn):
-        with mrcfile.open(fn) as mrc:
-            mode = mrc.header.mode
-            cols = mrc.header.nx
-            rows = mrc.header.ny
-            sections = mrc.header.nz
+        with mrcfile.open(self.fn) as mrc:
+            mode = int(mrc.header.mode)
+            cols = int(mrc.header.nx)  # a 0d numpy array
+            rows = int(mrc.header.ny)
+            sections = int(mrc.header.nz)
             origin = mrc.header.nxstart, mrc.header.nystart, mrc.header.nzstart
-            voxel_size = mrc.voxel_size  # Would be a tuple?
+            voxel_size = mrc.voxel_size.tolist()  # Would be a tuple?
             data = mrc.data
         return mode, cols, rows, sections, data, origin, voxel_size
 
@@ -35,7 +37,7 @@ class Average:
             raise TypeError("The map mode is not supported yet!")
 
         raw_data = self.raw_data.flatten()
-        packed_data = struct.pack(f"{self.cols * self.rows * self.sections}{type_flag}", *raw_data)
+        packed_data = struct.pack(f"{self.nc * self.nr * self.ns}{type_flag}", *raw_data)
         encoded_data = base64.b64encode(packed_data).decode("utf-8")
         return encoded_data
 

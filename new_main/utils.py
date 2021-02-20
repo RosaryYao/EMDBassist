@@ -2,7 +2,7 @@ import base64
 import struct
 
 
-class Read_table:
+class ReadTable:
     """Read data from the given table file"""
 
     def __init__(self, fn):

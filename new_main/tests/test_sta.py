@@ -1,3 +1,5 @@
+import base64
+import binascii
 import io
 import math
 import os
@@ -10,17 +12,21 @@ from unittest import mock
 import numpy as np
 
 from .. import TEST_DATA, core_modules
-from ..average import motl
-from ..table import motl, dynamo, peet
-from ..utils import Read_table
+from ..average import motl as motl_a
+from ..average import dynamo as dynamo_a
+from ..average import peet as peet_a
+from ..table import motl as motl_t
+from ..table import dynamo as dynamo_t
+from ..table import peet as peet_t
 from ..parser import parse_args
+from .. import utils
 
 cmd = "tra"
 
 
 class TestCLI(unittest.TestCase):
     def setUp(self) -> None:
-        self.file_root = f"{os.path.join(TEST_DATA, 'motl')}/file"
+        self.file_root = f"{os.path.join(TEST_DATA, 'motl')}/sample"
         if platform.system() == "Windows":
             self.file_root = os.path.normcase(self.file_root)
 
@@ -53,7 +59,7 @@ class TestCLI(unittest.TestCase):
         assert os._exit.called
 
     def test_dynamo(self):
-        self.file_root = f"{os.path.join(TEST_DATA, 'dynamo')}/file"
+        self.file_root = f"{os.path.join(TEST_DATA, 'dynamo')}/sample"
         if platform.system() == "Windows":
             self.file_root = os.path.normcase(self.file_root)
 
@@ -65,7 +71,7 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(args.average, f'{self.file_root}.em')
 
     def test_peet(self):
-        self.file_root = f"{os.path.join(TEST_DATA, 'peet')}/file"
+        self.file_root = f"{os.path.join(TEST_DATA, 'peet')}/sample"
         if platform.system() == "Windows":
             self.file_root = os.path.normcase(self.file_root)
 
@@ -78,7 +84,7 @@ class TestCLI(unittest.TestCase):
 
     def test_output(self):
         """Ensure that output is handled correctly"""
-        file_root = f"{os.path.join(TEST_DATA, 'motl')}/file"  # windows' format
+        file_root = f"{os.path.join(TEST_DATA, 'motl')}/sample"  # windows' format
         print(file_root)
         if platform.system() == "Windows":
             file_root = os.path.normcase(file_root)
@@ -141,20 +147,64 @@ class TestCLI(unittest.TestCase):
 
 
 class TestAverage(unittest.TestCase):
-    def setUp(self) -> None:
-        self.file_root = f"{os.path.join(TEST_DATA, 'motl')}/file"
-        if platform.system() == "Windows":
-            self.file_root = os.path.normcase(self.file_root)
 
     def test_motl(self):
-        # tra file # file is a motl .em, .map
-        sys.argv = f"{cmd} {self.file_root}".split(" ")
-        args = parse_args()
-        cls = core_modules.get_average(args)
-        self.assertIsInstance(cls, motl.Average)
+        average_em = f"{os.path.join(TEST_DATA, 'motl')}/emd_10752.map"
+        average = motl_a.Average(average_em)
+        self.assertTrue(np.allclose(np.array(average.voxel_size), np.array((1.78, 1.78, 1.78))))
+        self.assertEqual(average.nc, 160)
+        self.assertEqual(average.nr, 160)
+        self.assertEqual(average.ns, 160)
+        self.assertEqual(average.origin, (0, 0, 0))
+        self.assertEqual(average.mode, 2)
+        self.assertTrue(average.encoded_data.startswith("AAAAAAAAA"))
+
+        # test zlib compression
+        data_binary = base64.b64decode(average.encoded_data_compressed)[:4]
+        ascii_hex = binascii.b2a_hex(data_binary)
+        """
+        Recognizing zlib compression:
+        https://isc.sans.edu/forums/diary/Recognizing+ZLIB+Compression/25182/
+        The zlib generated data is structured according to RFC 1950. 
+        The first byte (0x78) is the compression method and flags
+        - 7801: No compression/low compression
+        - 789C: zlib default compression
+        - 78DA: zlib best compression
+        """
+        zlib_flag = [bytes("7801", "utf-8"), bytes("789c", "utf-8"), bytes("78da", "utf-8")]
+        flag = 0
+        if ascii_hex[0:4] in zlib_flag:
+            flag = 1
+        self.assertEqual(flag, 1)
 
     def test_dynamo(self):
-        self.assertTrue(False)
+        average_em = f"{os.path.join(TEST_DATA, 'dynamo')}/sample.em"
+        if platform.system() == "Windows":
+            average_em = os.path.normcase(average_em)
+        average = dynamo_a.Average(average_em)
+        self.assertEqual(average.nc, 40)
+        self.assertEqual(average.nr, 40)
+        self.assertEqual(average.ns, 40)
+        self.assertEqual(average.mode, 2)
+        self.assertTrue(average.encoded_data.startswith("6wVsv0vjKr"))
+
+        # test zlib compression
+        data_binary = base64.b64decode(average.encoded_data_compressed)[:4]
+        ascii_hex = binascii.b2a_hex(data_binary)
+        """
+        Recognizing zlib compression:
+        https://isc.sans.edu/forums/diary/Recognizing+ZLIB+Compression/25182/
+        The zlib generated data is structured according to RFC 1950. 
+        The first byte (0x78) is the compression method and flags
+        - 7801: No compression/low compression
+        - 789C: zlib default compression
+        - 78DA: zlib best compression
+        """
+        zlib_flag = [bytes("7801", "utf-8"), bytes("789c", "utf-8"), bytes("78da", "utf-8")]
+        flag = 0
+        if ascii_hex[0:4] in zlib_flag:
+            flag = 1
+        self.assertEqual(flag, 1)
 
     def test_peet(self):
         self.assertTrue(False)
@@ -164,7 +214,7 @@ class Test_read_table(unittest.TestCase):
     def setUp(self) -> None:
         self.table_em = f"{os.path.join(TEST_DATA, 'motl')}/motl_bin4_clathin_ref12_tomo_2.em"
         self.table_tbl = f"{os.path.join(TEST_DATA, 'dynamo')}/emd_1305_averaged.tbl"
-        # self.table_mod = f"{os.path.join(TEST_DATA, 'peet')}/file"
+        # self.table_mod = f"{os.path.join(TEST_DATA, 'peet')}/sample"
 
         if platform.system() == "Windows":
             self.table_em = os.path.normcase(self.table_em)
@@ -179,14 +229,14 @@ class Test_read_table(unittest.TestCase):
 
         captured_output = io.StringIO()
         sys.stdout = captured_output
-        dynamo_table = Read_table(self.table_tbl)
+        dynamo_table = utils.ReadTable(self.table_tbl)
         self.assertEqual(20, dynamo_table.rows)
         self.assertEqual(35, dynamo_table.cols)
         self.assertTrue("Dynamo" in captured_output.getvalue())
 
         captured_output = io.StringIO()
         sys.stdout = captured_output
-        motl_table = Read_table(self.table_em)
+        motl_table = utils.ReadTable(self.table_em)
         self.assertEqual(20, motl_table.cols)
         self.assertEqual(777, motl_table.rows)
         self.assertTrue("Briggs" in captured_output.getvalue())
@@ -201,20 +251,22 @@ class Test_read_table(unittest.TestCase):
 
 class TestTable(unittest.TestCase):
     def test_motl(self):
-        table_em = f"{os.path.join(TEST_DATA, 'motl')}/motl_bin4_clathin_ref12_tomo_2.em"
-        table = Read_table(table_em)
+        # table_em = f"{os.path.join(TEST_DATA, 'motl')}/motl_bin4_clathin_ref12_tomo_2.em"
+        table_em = f"{os.path.join(TEST_DATA, 'motl')}/sample.em"
+        table = utils.ReadTable(table_em)
         i = random.randint(0, len(table.col_data))
         print("random row number: " + str(i))
         data = table[i]
         print("content of the row: " + str(data))
-        motl_row = motl.Table(data)
+        motl_row = motl_t.Table(data)
 
-        self.assertTrue(-2*math.pi <= motl_row.tdrot <= 2*math.pi)
-        self.assertTrue(-2*math.pi <= motl_row.tilt <= 2*math.pi)
-        self.assertTrue(-2*math.pi <= motl_row.narot <= 2*math.pi)
+        self.assertTrue(-2 * math.pi <= motl_row.tdrot <= 2 * math.pi)
+        self.assertTrue(-2 * math.pi <= motl_row.tilt <= 2 * math.pi)
+        self.assertTrue(-2 * math.pi <= motl_row.narot <= 2 * math.pi)
         self.assertTrue(type(motl_row.x) == float)
         self.assertTrue(type(motl_row.y) == float)
         self.assertTrue(type(motl_row.z) == float)
+        # print(motl_row.dx)
 
         # test that rotation is correct
         matrix_z_1 = np.array([
@@ -224,9 +276,9 @@ class TestTable(unittest.TestCase):
         ])
 
         matrix_x = np.array([
-        [1, 0, 0],
-        [0, math.cos(motl_row.tilt), -math.sin(motl_row.tilt)],
-        [0, math.sin(motl_row.tilt), math.cos(motl_row.tilt)]
+            [1, 0, 0],
+            [0, math.cos(motl_row.tilt), -math.sin(motl_row.tilt)],
+            [0, math.sin(motl_row.tilt), math.cos(motl_row.tilt)]
         ])
 
         matrix_z_2 = np.array([
@@ -240,20 +292,20 @@ class TestTable(unittest.TestCase):
         self.assertTrue(np.allclose(expect_r, actual_r))
 
         # test translation is correct
-        expect_tx = np.array([data[7]+data[10], data[8]+data[11], data[9]+data[12]])
+        expect_tx = np.array([data[7] + data[10], data[8] + data[11], data[9] + data[12]])
         actual_tx = motl_row.transformation[:, 3]
         print(actual_tx)
         print(expect_tx)
         self.assertTrue(np.allclose(expect_tx, actual_tx))
 
     def test_dynamo(self):
-        table_tbl = f"{os.path.join(TEST_DATA, 'dynamo')}/emd_1305_averaged.tbl"
-        table = Read_table(table_tbl)
+        table_tbl = f"{os.path.join(TEST_DATA, 'dynamo')}/sample.tbl"
+        table = utils.ReadTable(table_tbl)
         i = random.randint(0, len(table.col_data))
         print("random row number: " + str(i))
         data = table[i]
         print("content of the row: " + str(data))
-        dynamo_row = dynamo.Table(data)
+        dynamo_row = dynamo_t.Table(data)
 
         self.assertTrue(-360 <= dynamo_row.narot <= 360)
         self.assertTrue(-360 <= dynamo_row.tdrot <= 360)
@@ -285,11 +337,86 @@ class TestTable(unittest.TestCase):
         self.assertTrue(np.allclose(expect_r, actual_r))
 
         # test translation is correct
-        expect_tx = np.array([float(data[23]) + float(data[3]), float(data[24]) + float(data[4]), float(data[25]) + float(data[5])])
+        expect_tx = np.array(
+            [float(data[23]) + float(data[3]), float(data[24]) + float(data[4]), float(data[25]) + float(data[5])])
         actual_tx = dynamo_row.transformation[:, 3]
         self.assertTrue(np.allclose(expect_tx, actual_tx))
-
 
     def test_peet(self):
         # -> peet.Table
         self.assertTrue(False)
+
+
+class TestOutput(unittest.TestCase):
+    def test_output_name(self):
+        file_root = f"{os.path.join(TEST_DATA, 'motl')}/sample"
+        if platform.system() == "Windows":
+            file_root = os.path.normcase(file_root)
+        sys.argv = f"{cmd} {file_root}".split(" ")
+        args = parse_args()
+        avg = core_modules.get_average(args)
+        tbl = utils.ReadTable(args.table)
+        core_modules.get_output(avg, tbl, args)
+        # core_modules.main() # todo: fix sys.exit(0) for windows
+        output_fn = f"{os.path.join(TEST_DATA, 'motl')}/sample.txt"
+        if platform.system() == "Windows":
+            output_fn = os.path.normcase(output_fn)
+        self.assertTrue(os.path.exists(output_fn))
+
+    def test_transformations(self):
+        self.assertTrue(False)
+
+    def test_output_compression(self):
+        self.assertTrue(False)
+
+    def test_file_rename(self):
+        # todo: or rename
+        file_root = f"{os.path.join(TEST_DATA, 'motl')}/sample"
+        if platform.system() == "Windows":
+            file_root = os.path.normcase(file_root)
+        sys.argv = f"{cmd} {file_root}".split(" ")
+        args = parse_args()
+        print(args.output)
+        avg = core_modules.get_average(args)
+        tbl = utils.ReadTable(args.table)
+        core_modules.get_output(avg, tbl, args)
+        # core_modules.main() # todo: fix sys.exit(0) for windows
+        output_fn = f"{os.path.join(TEST_DATA, 'motl')}/sample(1).txt"
+        if platform.system() == "Windows":
+            output_fn = os.path.normcase(output_fn)
+        self.assertTrue(os.path.exists(output_fn))
+
+
+class TestCoreModules(unittest.TestCase):
+
+    def test_motl(self):
+        # tra file # file is a motl .em, .map
+        self.file_root = f"{os.path.join(TEST_DATA, 'motl')}/sample"
+        if platform.system() == "Windows":
+            self.file_root = os.path.normcase(self.file_root)
+
+        sys.argv = f"{cmd} {self.file_root}".split(" ")
+        args = parse_args()
+        cls_average = core_modules.get_average(args)
+        cls_table_file = utils.ReadTable(args.table)
+        cls_table = core_modules.get_table(args, cls_table_file[random.randint(0, cls_table_file.rows)])
+        # todo: better structure of ReadTable + core_modules.get_table?
+
+        self.assertIsInstance(cls_average, motl_a.Average)
+        self.assertIsInstance(cls_table, motl_t.Table)
+
+    def test_dynamo(self):
+        self.file_root = f"{os.path.join(TEST_DATA, 'dynamo')}/sample"
+        if platform.system() == "Windows":
+            self.file_root = os.path.normcase(self.file_root)
+
+        sys.argv = f"{cmd} {self.file_root}".split(" ")
+        print(sys.argv)
+        args = parse_args()
+
+        cls_average = core_modules.get_average(args)
+        cls_table_file = utils.ReadTable(args.table)
+        cls_table = core_modules.get_table(args, cls_table_file[random.randint(0, cls_table_file.rows)])
+        # todo: better structure of ReadTable + core_modules.get_table?
+        self.assertIsInstance(cls_average, dynamo_a.Average)
+        self.assertIsInstance(cls_table, dynamo_t.Table)

@@ -71,9 +71,11 @@ def parse_args():
         assert args.output
 
     if args.compress:
-        print("Output encoded voxel data is compressed.")
+        # print("Output encoded voxel data is compressed.")
+        print(f"{args.output} is created, volume data is compressed.")
     else:
-        print("Output encoded voxel data is not compressed.")
+        # print("Output encoded voxel data is not compressed.")
+        print(f"{args.output} is created, volume data is not compressed.")
 
 #    if args.tomogram_origin:
 #        import mrcfile
