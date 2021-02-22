@@ -1,7 +1,7 @@
 import numpy as np
 import math
 
-
+from . import TableBase
 def matrix_z(theta):
     matrix = np.array([
         [math.cos(theta), math.sin(theta), 0],
@@ -29,7 +29,7 @@ def matrix_x(theta):
     return matrix
 
 
-class Table:
+class TableRow:
     def __init__(self, motl_row, voxel_size=(1.0, 1.0, 1.0)):
         self.row = motl_row
         # change each element in the tbl_row into float
@@ -64,3 +64,39 @@ class Table:
 
     def __str__(self):
         return f"Tbl_row={self.row}"
+
+
+
+class _Table(TableBase):
+    """Read data from the given table file"""
+
+    def _get_data(self):
+        if self._args.verbose:
+            print("Reading Briggs' motl table file...")
+
+        with open(self.fn, "rb") as motl:
+            motl.seek(128 * 4)  # keep an eye
+            raw_data = motl.read()
+            length = len(raw_data) / 4
+            raw_values = struct.unpack("%df" % length, raw_data)
+
+        for i, each in enumerate(raw_values[0:len(raw_values):20]):
+            flag = 20 * i
+            row = []
+            for value in raw_values[flag:(flag + 20)]:
+                row.append(value)
+            self.col_data.append(row)
+
+        try:
+            length_row = [len(row) for row in self.col_data]
+            assert sum(length_row) / len(length_row) == length_row[0]
+        except AssertionError:
+            raise ValueError("Number of columns are not equal on all rows!")
+
+        return len(self.col_data[0]), len(self.col_data), self.col_data
+
+    def __getitem__(self, index):
+        return TableRow(self.col_data[index])
+
+    def __iter__(self):
+        return iter(self.col_data)

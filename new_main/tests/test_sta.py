@@ -258,7 +258,7 @@ class TestTable(unittest.TestCase):
         print("random row number: " + str(i))
         data = table[i]
         print("content of the row: " + str(data))
-        motl_row = motl_t.Table(data)
+        motl_row = motl_t.TableRow(data)
 
         self.assertTrue(-2 * math.pi <= motl_row.tdrot <= 2 * math.pi)
         self.assertTrue(-2 * math.pi <= motl_row.tilt <= 2 * math.pi)
@@ -403,7 +403,7 @@ class TestCoreModules(unittest.TestCase):
         # todo: better structure of ReadTable + core_modules.get_table?
 
         self.assertIsInstance(cls_average, motl_a.Average)
-        self.assertIsInstance(cls_table, motl_t.Table)
+        self.assertIsInstance(cls_table, motl_t.TableRow)
 
     def test_dynamo(self):
         self.file_root = f"{os.path.join(TEST_DATA, 'dynamo')}/sample"

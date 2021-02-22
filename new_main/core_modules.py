@@ -44,7 +44,7 @@ def get_table(args, table):
     # todo: better structure of ReadTable + core_modules.get_table?
 
     if re.match(r".*\.map$", args.average) and re.match(r".*\.em$", args.table):
-        return motl_t.Table(table)
+        return motl_t._Table(table)
     if re.match(r".*\.em$", args.average) and re.match(r".*\.tbl$", args.table):
         return dynamo_t.Table(table)
     # elif re.match(r".*\.rec$", args.average) and re.match(r".*\.mod$", args.table):
@@ -54,35 +54,15 @@ def get_table(args, table):
 
 
 def get_output(avg, tbl, args):
-    """Factory function which returns appropriate Output class"""
-    #average = get_average(args.average)
-    #table = utils.ReadTable(args.table)
-    output_fn = args.output
-    output_fn_root = re.sub(r'.txt$', "", output_fn)
-
-    output_transformations = []
-    for i in range(0, tbl.rows):
-        transformation = get_table(args, tbl[i]).transformation
-        output_transformations.append(transformation)
-
-    # todo： overwrite file if file already exist?
-    # if os.path.exists(output_fn):
-    #    os.remove(output_fn)
-
-    # todo: or rename the file?
-    rename_flag = 0
-    while os.path.exists(output_fn):
-        rename_flag += 1
-        output_fn = f'{output_fn_root}({rename_flag}).txt'
-        print('File already exists!')
-        # print("New file name: " + output_fn)
-
-    with open(output_fn, "w") as f:
-        for i in range(tbl.rows):
-            line_to_write = str(i + 1) + "," \
-                            + "".join(
-                str(f"{e},").replace("[", "").replace("]", "").replace(" ", "") for e in output_transformations[i]) \
-                            + "0,0,0,1\n"
+    """To be factory function which returns appropriate Output class"""
+    with open(args.output, "w") as f:
+        for i, table_row in enumerate(tbl):
+            # fixme: fix
+            # line_to_write = f"{}," \
+            #                 + "".join(
+            #     str(f"{e},") for e in output_transformations[i]) \
+            #                 + "0,0,0,1\n"
+            line_to_write = f"{i + 1}\t{table_row}\n"
             f.write(line_to_write)
 
         f.write("Mode:" + "\t" + str(avg.mode) + "\n")
@@ -104,7 +84,7 @@ def main():
     # create the generic average object
     avg = get_average(args)
     # create the generic table object
-    tbl = utils.ReadTable(args.table)
+    tbl = utils.Table(args.table)
     # create a generic output object
     # out = get_output(avg, tbl, args)
     # write the output
