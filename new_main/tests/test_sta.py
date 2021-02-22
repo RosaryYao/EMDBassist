@@ -246,7 +246,7 @@ class Test_read_table(unittest.TestCase):
             fake_table = os.path.normcase(fake_table)
 
         with self.assertRaises(ValueError):
-            Read_table(fake_table)
+            ReadTable(fake_table)
 
 
 class TestTable(unittest.TestCase):

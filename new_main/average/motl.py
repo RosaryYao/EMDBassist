@@ -8,8 +8,8 @@ import numpy
 
 
 class Average:
-    def __init__(self, fn):
-        self.fn = fn
+    def __init__(self, fn, args):
+        self.fn = args.average
         self.mode, self.nc, self.nr, self.ns, self.raw_data, self.origin, self.voxel_size = self._get_data(fn)
         self.encoded_data = self.encode_data()
 

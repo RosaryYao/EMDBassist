@@ -8,6 +8,9 @@ import sys
 
 from new_main import TEST_DATA, parser
 from new_main.average import motl as motl_a
+# todo: change motl_a into average.motl etc.
+from new_main import average, table
+
 from new_main.average import dynamo as dynamo_a
 from new_main.average import peet as peet_a
 # from new_main.average.motl import Brigg_map as brigg_sta
@@ -27,9 +30,9 @@ with open(motl_data) as _:  # todo: what is this?
 def get_average(args):
     """Factory function which returns appropriate Average class"""
     if re.match(r".*\.map$", args.average) and re.match(r".*\.em$", args.table):
-        return motl_a.Average(args.average)
+        return motl_a.Average(args)
     elif re.match(r".*\.em$", args.average) and re.match(r".*\.tbl$", args.table):
-        return dynamo_a.Average(args.average)
+        return dynamo_a.Average(args.average)  # todo: change the interface, takes args in addition for modification
     # elif re.match(r".*\.rec$", args.average) and re.match(r".*\.mod$", args.table):
     #    return peet_a.Average(args.average)
     else:
