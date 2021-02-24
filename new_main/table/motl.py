@@ -1,7 +1,7 @@
+import math
 import struct
 
 import numpy as np
-import math
 
 from . import TableBase
 
@@ -43,11 +43,12 @@ class TableRow:
 
     def _get_data(self):
         dx, dy, dz = float(self.row[10]), float(self.row[11]), float(self.row[12])  # todo: fix here
-        #if dx != 0 or dy != 0 or dz != 0:
+        # if dx != 0 or dy != 0 or dz != 0:
         #    raise ValueError("shifts in x, y, z are note equal to zero")
 
-        tdrot, tilt, narot = math.radians(float(self.row[17])), math.radians(float(self.row[18])), math.radians(float(self.row[16]))
-        x, y, z = float(self.row[7]+dx), float(self.row[8]+dy), float(self.row[9]+dz)
+        tdrot, tilt, narot = math.radians(float(self.row[17])), math.radians(float(self.row[18])), math.radians(
+            float(self.row[16]))
+        x, y, z = float(self.row[7] + dx), float(self.row[8] + dy), float(self.row[9] + dz)
         return dx, dy, dz, tdrot, tilt, narot, x, y, z
 
     def _transform(self):
@@ -72,12 +73,12 @@ class TableRow:
         return line_to_write
 
 
-class _Table(TableBase):
+class Table(TableBase):
     """Read data from the given table file"""
 
     def _get_data(self):
-#        if self._args.verbose:
-#            print("Reading Briggs' motl table file...")
+        if self._args.verbose:
+            print("Reading Briggs' motl table file...", file=sys.stderr)
 
         with open(self.fn, "rb") as motl:
             motl.seek(128 * 4)  # keep an eye

@@ -9,6 +9,7 @@ setup(
     author='Rosary Yao, Paul K Korir',
     author_email='rosary@ebi.ac.uk, pkorir@ebi.ac.uk',
     description='Transform subtomogram average data to generic format',
+    install_requires=['numpy', 'mrcfile'],
     entry_points={
         'console_scripts': [
             # todo: more concise names required

@@ -7,33 +7,29 @@ import platform
 import random
 import sys
 import unittest
-from unittest import mock
 
 import numpy as np
 
-from .. import TEST_DATA, core_modules
-from ..average import motl as motl_a
+from .. import average, table
+from .. import TEST_DATA, core_modules, utils
 from ..average import dynamo as dynamo_a
-from ..average import peet as peet_a
-from ..table import motl as motl_t
-from ..table import dynamo as dynamo_t
-from ..table import peet as peet_t
+from ..average import motl as motl_a
 from ..parser import parse_args
-from .. import utils
+from ..table import dynamo as dynamo_t
+from ..table import motl as motl_t
 
 cmd = "tra"
 
 
 class TestCLI(unittest.TestCase):
     def setUp(self) -> None:
-        self.file_root = f"{os.path.join(TEST_DATA, 'motl')}/file"
         self.motl_fn_root = os.path.join(TEST_DATA, 'motl', 'file')
         self.dynamo_fn_root = os.path.join(TEST_DATA, 'dynamo', 'file')
         self.peet_fn_root = os.path.join(TEST_DATA, 'peet', 'file')
         if platform.system() == "Windows":
             self.motl_fn_root = os.path.normcase(self.motl_fn_root)
             self.dynamo_fn_root = os.path.normcase(self.dynamo_fn_root)
-            self.peet_fn_root= os.path.normcase(self.peet_fn_root)
+            self.peet_fn_root = os.path.normcase(self.peet_fn_root)
 
     def test_default(self):
         sys.argv = f"{cmd} {self.motl_fn_root}".split(" ")
@@ -126,20 +122,29 @@ class TestCLI(unittest.TestCase):
 
 
 class TestAverage(unittest.TestCase):
+    def setUp(self) -> None:
+        self.motl_fn_root = os.path.join(TEST_DATA, 'motl', 'file')
+        self.dynamo_fn_root = os.path.join(TEST_DATA, 'dynamo', 'file')
+        self.peet_fn_root = os.path.join(TEST_DATA, 'peet', 'file')
+        if platform.system() == "Windows":
+            self.motl_fn_root = os.path.normcase(self.motl_fn_root)
+            self.dynamo_fn_root = os.path.normcase(self.dynamo_fn_root)
+            self.peet_fn_root = os.path.normcase(self.peet_fn_root)
 
     def test_motl(self):
-        average_em = f"{os.path.join(TEST_DATA, 'motl')}/emd_10752.map"
-        average = motl_a.Average(average_em)
-        self.assertTrue(np.allclose(np.array(average.voxel_size), np.array((1.78, 1.78, 1.78))))
-        self.assertEqual(average.nc, 160)
-        self.assertEqual(average.nr, 160)
-        self.assertEqual(average.ns, 160)
-        self.assertEqual(average.origin, (0, 0, 0))
-        self.assertEqual(average.mode, 2)
-        self.assertTrue(average.encoded_data.startswith("AAAAAAAAA"))
+        sys.argv = f"{cmd} {os.path.join(TEST_DATA, 'motl', 'emd_12132')}".split(' ')
+        args = parse_args()
+        avobj = average.motl.Average(args.average, args)
+        self.assertTrue(np.allclose(np.array(avobj.voxel_size), np.array((7.08, 7.08, 7.08))))
+        self.assertEqual(avobj.nc, 50)
+        self.assertEqual(avobj.nr, 50)
+        self.assertEqual(avobj.ns, 50)
+        self.assertEqual(avobj.origin, (0, 0, 0))
+        self.assertEqual(avobj.mode, 2)
+        self.assertTrue(avobj.encoded_data.startswith("7CigvyDAmL/JA1O/FIe1vjkme"))
 
         # test zlib compression
-        data_binary = base64.b64decode(average.encoded_data_compressed)[:4]
+        data_binary = base64.b64decode(avobj.encoded_data_compressed)[:4]
         ascii_hex = binascii.b2a_hex(data_binary)
         """
         Recognizing zlib compression:
@@ -160,15 +165,15 @@ class TestAverage(unittest.TestCase):
         average_em = f"{os.path.join(TEST_DATA, 'dynamo')}/sample.em"
         if platform.system() == "Windows":
             average_em = os.path.normcase(average_em)
-        average = dynamo_a.Average(average_em)
-        self.assertEqual(average.nc, 40)
-        self.assertEqual(average.nr, 40)
-        self.assertEqual(average.ns, 40)
-        self.assertEqual(average.mode, 2)
-        self.assertTrue(average.encoded_data.startswith("6wVsv0vjKr"))
+        avobj = dynamo_a.Average(average_em)
+        self.assertEqual(avobj.nc, 40)
+        self.assertEqual(avobj.nr, 40)
+        self.assertEqual(avobj.ns, 40)
+        self.assertEqual(avobj.mode, 2)
+        self.assertTrue(avobj.encoded_data.startswith("6wVsv0vjKr"))
 
         # test zlib compression
-        data_binary = base64.b64decode(average.encoded_data_compressed)[:4]
+        data_binary = base64.b64decode(avobj.encoded_data_compressed)[:4]
         ascii_hex = binascii.b2a_hex(data_binary)
         """
         Recognizing zlib compression:
@@ -282,9 +287,9 @@ class TestTable(unittest.TestCase):
         os.path.exists(args.table)
 
         tbl = core_modules.get_table(args)
-        self.assertIsInstance(tbl, motl_t._Table)
+        self.assertIsInstance(tbl, motl_t.Table)
 
-        i = random.randint(0, tbl.rows-1)
+        i = random.randint(0, tbl.rows - 1)
         motl_row = tbl[i]
 
         self.assertTrue(-2 * math.pi <= motl_row.tdrot <= 2 * math.pi)
@@ -332,7 +337,7 @@ class TestTable(unittest.TestCase):
         os.path.exists(args.table)
 
         tbl = core_modules.get_table(args)
-        self.assertIsInstance(tbl, dynamo_t._Table)
+        self.assertIsInstance(tbl, dynamo_t.Table)
 
         i = random.randint(0, tbl.rows - 1)
         tbl_row = tbl[i]
@@ -376,7 +381,6 @@ class TestTable(unittest.TestCase):
     def test_peet(self):
         # -> peet.Table
         self.assertTrue(False)
-
 
 
 class TestOutput(unittest.TestCase):

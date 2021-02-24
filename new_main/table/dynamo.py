@@ -1,6 +1,7 @@
 # Define rotation matrices (anticlockwise)
-import numpy as np
 import math
+
+import numpy as np
 
 from . import TableBase
 
@@ -65,7 +66,8 @@ class TableRow:
 
     def _get_data(self):
         dx, dy, dz = float(self.row[3]), float(self.row[4]), float(self.row[5])
-        tdrot, tilt, narot = math.radians(float(self.row[6])), math.radians(float(self.row[7])), math.radians(float(self.row[8]))
+        tdrot, tilt, narot = math.radians(float(self.row[6])), math.radians(float(self.row[7])), math.radians(
+            float(self.row[8]))
         x, y, z = float(self.row[23]), float(self.row[24]), float(self.row[25])
         dshift, daxis, dnarot = float(self.row[26]), float(self.row[27]), float(self.row[28])
         return dx, dy, dz, tdrot, tilt, narot, x, y, z, dshift, daxis, dnarot
@@ -85,12 +87,12 @@ class TableRow:
         return line_to_write
 
 
-class _Table(TableBase):
+class Table(TableBase):
     """Read Dynamo table file"""
 
     def _get_data(self):
-        #if self._args.verbose:
-        #    print("Reading Dynamo table file...")
+        if self._args.verbose:
+            print("Reading Dynamo table file...", file=sys.stderr)
 
         with open(self.fn, "r") as f:
             row_data = f.readlines()

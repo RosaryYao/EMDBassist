@@ -1,15 +1,15 @@
 """Output Briggs lab voxel data file, encoded in base64 as string"""
 
-import mrcfile
-import struct
 import base64
+import struct
 
-import numpy
+import mrcfile
 
 
 class Average:
     def __init__(self, fn, args):
         self.fn = args.average
+        self._args = args
         self.mode, self.nc, self.nr, self.ns, self.raw_data, self.origin, self.voxel_size = self._get_data(fn)
         self.encoded_data = self.encode_data()
 
@@ -47,8 +47,13 @@ class Average:
         compressed_raw_data = zlib.compress(self.raw_data.flatten())
         return base64.b64encode(compressed_raw_data).decode("utf-8")
 
-#map = Brigg_map("emd_3465.map")
-#print(map.encoded_data[0:10])
-#print(map.encoded_data_compressed[0:10])
+    def __repr__(self):
+        """The class's fully-qualified (including the package etc.) class name"""
+        return f"{self.__class__.__qualname__}({self._args.average}, {self._args})"
 
+    def __str__(self):
+        return f"motl average for {self.fn}: size={self.nc, self.nr, self.ns}; voxel size={self.voxel_size}; origin={self.origin}"
 
+# map = Brigg_map("emd_3465.map")
+# print(map.encoded_data[0:10])
+# print(map.encoded_data_compressed[0:10])

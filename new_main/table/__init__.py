@@ -7,6 +7,5 @@ class TableBase:
         self.col_data = list()
         self.cols, self.rows, self.col_data = self._get_data()
 
-
     def _get_data(self):
         raise NotImplementedError
