@@ -34,9 +34,9 @@ class TestCLI(unittest.TestCase):
     def test_default(self):
         sys.argv = f"{cmd} {self.motl_fn_root}".split(" ")
         args = parse_args()
-        self.assertEqual(args.file, self.file_root)
-        self.assertEqual(args.table, f"{self.file_root}.em")
-        self.assertEqual(args.average, f"{self.file_root}.map")
+        self.assertEqual(args.file, self.motl_fn_root)
+        self.assertEqual(args.table, f"{self.motl_fn_root}.em")
+        self.assertEqual(args.average, f"{self.motl_fn_root}.map")
 
     def test_explicit(self):
         """User explicitly specifies files"""
@@ -46,7 +46,7 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(args.average, f"{self.motl_fn_root}.map")
 
         # ensure AssertionError raised when only one specified file given
-        sys.argv = f"cmd -T {self.file_root}.em".split(" ")
+        sys.argv = f"cmd -T {self.motl_fn_root}.em".split(" ")
         args = parse_args()
         self.assertIsNone(args)
 
@@ -78,47 +78,35 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(args.output, output_fn)
 
     def test_output_overwrite(self):
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        output_fn = os.path.join(TEST_DATA, 'motl', 'test_rewrite.txt')
+        sys.argv = f"{cmd} {self.motl_fn_root} -o {output_fn}".split(" ")
+
+        with self.assertRaises(FileExistsError):
+            parse_args()
+            self.assertTrue("already exists" in captured_output.getvalue())
+
+    def test_output_overwrite_force(self):
         """Test that user cannot overwrite their output"""
-        # tra file
-        # tra file # again -> "error: output file already exists; use -f/--force to overwrite"
-        # tra file -f/--force # overwrite
-        # tra file -o output.txt # "error: output file already exists; use -f/--force to overwrite"
-        # tra file -f -o output.txt # overwrite
-        self.assertTrue(False)
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        output_fn = os.path.join(TEST_DATA, 'motl', 'test_rewrite.txt')
+        sys.argv = f"{cmd} {self.motl_fn_root} -o {output_fn} -f".split(" ")
+        args = parse_args()
+        self.assertTrue("overwritten" in captured_output.getvalue())
 
     def test_compress(self):
         captured_output = io.StringIO()
         sys.stdout = captured_output
-        sys.argv = f"{cmd} {self.file_root}".split(" ")
+        sys.argv = f"{cmd} {self.motl_fn_root}".split(" ")
         parse_args()
         self.assertTrue("not compressed" in captured_output.getvalue())
 
         captured_output = io.StringIO()
         sys.stdout = captured_output
-        sys.argv = f"{cmd} {self.file_root} -c".split(" ")
+        sys.argv = f"{cmd} {self.motl_fn_root} -c".split(" ")
         self.assertTrue("not" not in captured_output.getvalue())
-
-
-"""
-    def test_tomogram_origin(self):
-        captured_output = io.StringIO()
-        sys.stdout = captured_output
-
-        tomogram = f"{os.path.join(TEST_DATA, 'tomogram')}\emd_1305.map"
-        self.assertTrue(os.path.exists(tomogram))
-
-        sys.argv = f"{cmd} {self.file_root} -O {tomogram}".split(" ")
-        parse_args()
-        self.assertTrue("-162" in captured_output.getvalue())
-
-    def test_tomogram_voxel_size(self):
-        captured_output = io.StringIO()
-        sys.stdout = captured_output
-        tomogram = f"{os.path.join(TEST_DATA, 'tomogram')}\emd_1305.map"
-        sys.argv = f"{cmd} {self.file_root} -v {tomogram}".split(" ")
-        parse_args()
-        self.assertTrue("5.43" in captured_output.getvalue())
-"""
 
 
 class TestAverage(unittest.TestCase):
@@ -281,8 +269,6 @@ class TestTable(unittest.TestCase):
         data = tbl.col_data[i]
         expect_tx = np.array([data[7] + data[10], data[8] + data[11], data[9] + data[12]])
         actual_tx = motl_row.transformation[:, 3]
-        print(actual_tx)
-        print(expect_tx)
         self.assertTrue(np.allclose(expect_tx, actual_tx))
 
     def test_dynamo(self):
@@ -368,7 +354,6 @@ class TestOutput(unittest.TestCase):
             file_root = os.path.normcase(file_root)
         sys.argv = f"{cmd} {file_root}".split(" ")
         args = parse_args()
-        print(args.output)
         avg = core_modules.get_average(args)
         tbl = core_modules.get_table(args)
         core_modules.get_output(avg, tbl, args)
@@ -403,7 +388,6 @@ class TestCoreModules(unittest.TestCase):
             self.file_root = os.path.normcase(self.file_root)
 
         sys.argv = f"{cmd} {self.file_root}".split(" ")
-        print(sys.argv)
         args = parse_args()
 
         cls_average = core_modules.get_average(args)

@@ -5,6 +5,7 @@ Also, it ignores calculation using data from tomograms
 import os
 import re
 import sys
+import platform
 
 from . import parser, average, table
 
@@ -49,11 +50,9 @@ def get_output(avg, tbl, args):
         f.write("Ns:" + "\t" + str(avg.ns) + "\n")
 
         if args.compress:
-            # compress_flag = 1
             f.write(avg.encoded_data_compressed)
             print(f"{args.output} is created, volume data is compressed.")
         else:
-            # compress_flag = 0
             f.write(avg.encoded_data)
             print(f"{args.output} is created, volume data is not compressed.")
 
@@ -61,22 +60,16 @@ def get_output(avg, tbl, args):
 def main():
     args = parser.parse_args()
     if args is None:
-        if sys.platform.system() == "Windows":
+        if platform.system() == "Windows":
             return 64
         return os.EX_USAGE
     # create the generic average object
     avg = get_average(args)
     # create the generic table object
-    # tbl = utils.Table(args.table)
     tbl = get_table(args)
-    # create a generic output object
-    # out = get_output(avg, tbl, args)
-    # write the output
-    # out.write()
-    # output_txt(args)
     get_output(avg, tbl, args)
-    if sys.platform.system() == "Windows":
-        return 0
+    if platform.system() == "Windows":
+        return sys.exit(0)
     return os.EX_OK
 
 

@@ -9,7 +9,12 @@ parser.add_argument('file', nargs="?")
 parser.add_argument('-T', '--table', help='table of coordinates')
 parser.add_argument('-A', '--average', help='averaged density')
 # parser.add_argument('-t', '--tomogram', help=f"the tomogram")
+
+# parser.add_argument("-o", "--output", help="the output file name (.txt)")
 parser.add_argument("-o", "--output", help="the output file name (.txt)")
+parser.add_argument('-f', "--force", help='force to overwrite the existing output file', default=False, action='store_true')
+
+
 parser.add_argument("-c", "--compress", default=False, action="store_true",
                     help="Compress the voxel data [default: False]")
 #parser.add_argument("-O", "--tomogram-origin",
@@ -69,6 +74,13 @@ def parse_args():
         args.output = f"{args.file}.txt"
     else:
         assert args.output
+
+    # Check whether the file already exists
+    if args.force:
+        print(f"{args.output} is overwritten.")
+        pass
+    if os.path.exists(args.output) and not args.force:
+        raise FileExistsError("error: output file already exists; use -f/--force to overwrite")
 
     if args.compress:
         # print("Output encoded voxel data is compressed.")
