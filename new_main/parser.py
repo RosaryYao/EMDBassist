@@ -51,18 +51,18 @@ def parse_args():
             args.table = f"{args.file}.mod"
             args.average = f"{args.file}.rec"
         else:
-            print(f"indeterminate file types", file=sys.stderr)
+            print(f"indeterminate file types: {file_type}", file=sys.stderr)
             print(f"please ensure that {args.file}.<table extension> and {args.file}.<average extension> exist",
                   file=sys.stderr)
             print(f"alternatively, use -T/--table <file> -A/--average <file> to run", file=sys.stderr)
-            return 64  # os.EX_USAGE
+            return None  # os.EX_USAGE
     else:
         try:
             assert args.table and args.average
         except AssertionError:
             print(f"both -T/--table and -A/--average must be used together", file=sys.stderr)
             # sys.exit(1)  # os.EX_USAGE
-            return os._exit(1)
+            return None
     # we are guaranteed we have reliable and consistent args
 
     if not args.output:

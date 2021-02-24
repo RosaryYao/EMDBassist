@@ -26,79 +26,58 @@ cmd = "tra"
 
 class TestCLI(unittest.TestCase):
     def setUp(self) -> None:
-        self.file_root = f"{os.path.join(TEST_DATA, 'motl')}/sample"
+        self.file_root = f"{os.path.join(TEST_DATA, 'motl')}/file"
+        self.motl_fn_root = os.path.join(TEST_DATA, 'motl', 'file')
+        self.dynamo_fn_root = os.path.join(TEST_DATA, 'dynamo', 'file')
+        self.peet_fn_root = os.path.join(TEST_DATA, 'peet', 'file')
         if platform.system() == "Windows":
-            self.file_root = os.path.normcase(self.file_root)
+            self.motl_fn_root = os.path.normcase(self.motl_fn_root)
+            self.dynamo_fn_root = os.path.normcase(self.dynamo_fn_root)
+            self.peet_fn_root= os.path.normcase(self.peet_fn_root)
 
     def test_default(self):
-        sys.argv = f"{cmd} {self.file_root}".split(" ")
-        print(sys.argv)
+        sys.argv = f"{cmd} {self.motl_fn_root}".split(" ")
         args = parse_args()
-        print(f"The args.file is: {args.file}")
-        print(os.path.exists(f"{args.file}.em"))
-        print(os.path.exists(f"{self.file_root}.em"))
         self.assertEqual(args.file, self.file_root)
         self.assertEqual(args.table, f"{self.file_root}.em")
         self.assertEqual(args.average, f"{self.file_root}.map")
 
     def test_explicit(self):
         """User explicitly specifies files"""
-        sys.argv = f"{cmd} -T {self.file_root}.em -A {self.file_root}.map".split(" ")
-        print(sys.argv)
+        sys.argv = f"{cmd} -T {self.motl_fn_root}.em -A {self.motl_fn_root}.map".split(" ")
         args = parse_args()
-        self.assertEqual(args.table, f"{self.file_root}.em")
-        self.assertEqual(args.average, f"{self.file_root}.map")
+        self.assertEqual(args.table, f"{self.motl_fn_root}.em")
+        self.assertEqual(args.average, f"{self.motl_fn_root}.map")
 
         # ensure AssertionError raised when only one specified file given
         sys.argv = f"cmd -T {self.file_root}.em".split(" ")
-        # with self.assertRaises(AssertionError):
-        #    parse_args()
-        # self.assertEqual(parse_args(), os._exit(1))  # todo: fix this...
-        os._exit = mock.MagicMock()
-        parse_args()
-        assert os._exit.called
+        args = parse_args()
+        self.assertIsNone(args)
 
     def test_dynamo(self):
-        self.file_root = f"{os.path.join(TEST_DATA, 'dynamo')}/sample"
-        if platform.system() == "Windows":
-            self.file_root = os.path.normcase(self.file_root)
-
-        self.assertTrue(os.path.exists(f"{self.file_root}.tbl"))
-        self.assertTrue(os.path.exists(f"{self.file_root}.em"))
-        sys.argv = f"{cmd} {self.file_root}".split(" ")
+        self.assertTrue(os.path.exists(f"{self.dynamo_fn_root}.tbl"))
+        self.assertTrue(os.path.exists(f"{self.dynamo_fn_root}.em"))
+        sys.argv = f"{cmd} {self.dynamo_fn_root}".split(" ")
         args = parse_args()
-        self.assertEqual(args.table, f'{self.file_root}.tbl')
-        self.assertEqual(args.average, f'{self.file_root}.em')
+        self.assertEqual(args.table, f'{self.dynamo_fn_root}.tbl')
+        self.assertEqual(args.average, f'{self.dynamo_fn_root}.em')
 
     def test_peet(self):
-        self.file_root = f"{os.path.join(TEST_DATA, 'peet')}/sample"
-        if platform.system() == "Windows":
-            self.file_root = os.path.normcase(self.file_root)
-
-        self.assertTrue(os.path.exists(f"{self.file_root}.rec"))
-        self.assertTrue(os.path.exists(f"{self.file_root}.mod"))
-        sys.argv = f"{cmd} {self.file_root}".split(" ")
+        self.assertTrue(os.path.exists(f"{self.peet_fn_root}.rec"))
+        self.assertTrue(os.path.exists(f"{self.peet_fn_root}.mod"))
+        sys.argv = f"{cmd} {self.peet_fn_root}".split(" ")
         args = parse_args()
-        self.assertEqual(args.table, f'{self.file_root}.mod')
-        self.assertEqual(args.average, f'{self.file_root}.rec')
+        self.assertEqual(args.table, f'{self.peet_fn_root}.mod')
+        self.assertEqual(args.average, f'{self.peet_fn_root}.rec')
 
     def test_output(self):
         """Ensure that output is handled correctly"""
-        file_root = f"{os.path.join(TEST_DATA, 'motl')}/sample"  # windows' format
-        print(file_root)
-        if platform.system() == "Windows":
-            file_root = os.path.normcase(file_root)
-        print(f"value of file_root: {file_root}")
-        # sys.argv = shlex.split(f"cmd {file_root}")
-        sys.argv = f"{cmd} {file_root}".split(" ")
+        sys.argv = f"{cmd} {self.motl_fn_root}".split(" ")
         args = parse_args()
-        # test
-        self.assertEqual(args.output, f"{file_root}.txt")
-
+        self.assertEqual(args.output, f"{self.motl_fn_root}.txt")
         # user specified output
         output_fn = "my_output.txt"
-        # sys.argv = (f"{cmd} {file_root} -o {output_fn}"
-        sys.argv = f"{cmd} {file_root} -o {output_fn}".split(" ")
+        sys.argv = f"{cmd} {self.motl_fn_root} -o {output_fn}".split(" ")
         args = parse_args()
         self.assertEqual(args.output, output_fn)
 

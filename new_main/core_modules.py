@@ -75,6 +75,10 @@ def get_output(avg, tbl, args):
 
 def main():
     args = parser.parse_args()
+    if args is None:
+        if platform.system() == "Windows":
+            return 64
+        return os.EX_USAGE
     # create the generic average object
     avg = get_average(args)
     # create the generic table object
@@ -86,7 +90,9 @@ def main():
     # out.write()
     # output_txt(args)
     get_output(avg, tbl, args)
-    return sys.exit(0)  # constants which inform the OS on exit status
+    if platform.system() == "Windows":
+        return 0
+    return os.EX_OK
 
 
 if __name__ == "__main__":
