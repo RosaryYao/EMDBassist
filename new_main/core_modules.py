@@ -40,6 +40,7 @@ def get_output(avg, tbl, args):
     with open(args.output, "w") as f:
         for i, each in enumerate(tbl.__iter__()):
             table_row = tbl.__getitem__(i)
+            f.write(f"{i+1},")
             f.write(table_row.__str__())
 
         f.write("Mode:" + "\t" + str(avg.mode) + "\n")
@@ -60,7 +61,7 @@ def get_output(avg, tbl, args):
 def main():
     args = parser.parse_args()
     if args is None:
-        if platform.system() == "Windows":
+        if sys.platform.system() == "Windows":
             return 64
         return os.EX_USAGE
     # create the generic average object
@@ -74,7 +75,7 @@ def main():
     # out.write()
     # output_txt(args)
     get_output(avg, tbl, args)
-    if platform.system() == "Windows":
+    if sys.platform.system() == "Windows":
         return 0
     return os.EX_OK
 

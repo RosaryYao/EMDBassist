@@ -235,50 +235,6 @@ class Test_read_table(unittest.TestCase):
 
 class TestTable(unittest.TestCase):
 
-    def test_dynamo(self):
-        table_tbl = f"{os.path.join(TEST_DATA, 'dynamo')}/sample.tbl"
-        table = utils.ReadTable(table_tbl)
-        i = random.randint(0, len(table.col_data))
-        print("random row number: " + str(i))
-        data = table[i]
-        print("content of the row: " + str(data))
-        dynamo_row = dynamo_t.Table(data)
-
-        self.assertTrue(-360 <= dynamo_row.narot <= 360)
-        self.assertTrue(-360 <= dynamo_row.tdrot <= 360)
-        self.assertTrue(-360 <= dynamo_row.tilt <= 360)
-        self.assertTrue(type(dynamo_row.x) == float)
-        self.assertTrue(type(dynamo_row.y) == float)
-        self.assertTrue(type(dynamo_row.z) == float)
-
-        matrix_z_1 = np.array([
-            [math.cos(dynamo_row.tdrot), math.sin(dynamo_row.tdrot), 0],
-            [-math.sin(dynamo_row.tdrot), math.cos(dynamo_row.tdrot), 0],
-            [0, 0, 1]
-        ])
-
-        matrix_x = np.array([
-            [1, 0, 0],
-            [0, math.cos(dynamo_row.tilt), math.sin(dynamo_row.tilt)],
-            [0, -math.sin(dynamo_row.tilt), math.cos(dynamo_row.tilt)]
-        ])
-
-        matrix_z_2 = np.array([
-            [math.cos(dynamo_row.narot), math.sin(dynamo_row.narot), 0],
-            [-math.sin(dynamo_row.narot), math.cos(dynamo_row.narot), 0],
-            [0, 0, 1]
-        ])
-
-        expect_r = matrix_z_1.dot(matrix_x).dot(matrix_z_2)
-        actual_r = dynamo_row.transformation[:, 0:3]
-        self.assertTrue(np.allclose(expect_r, actual_r))
-
-        # test translation is correct
-        expect_tx = np.array(
-            [float(data[23]) + float(data[3]), float(data[24]) + float(data[4]), float(data[25]) + float(data[5])])
-        actual_tx = dynamo_row.transformation[:, 3]
-        self.assertTrue(np.allclose(expect_tx, actual_tx))
-
     def test_motl(self):
         file_root = f"{os.path.join(TEST_DATA, 'motl')}/sample"
         sys.argv = f"{cmd} {file_root}".split(" ")
@@ -391,7 +347,7 @@ class TestOutput(unittest.TestCase):
         sys.argv = f"{cmd} {file_root}".split(" ")
         args = parse_args()
         avg = core_modules.get_average(args)
-        tbl = utils.ReadTable(args.table)
+        tbl = core_modules.get_table(args)
         core_modules.get_output(avg, tbl, args)
         # core_modules.main() # todo: fix sys.exit(0) for windows
         output_fn = f"{os.path.join(TEST_DATA, 'motl')}/sample.txt"
@@ -414,9 +370,9 @@ class TestOutput(unittest.TestCase):
         args = parse_args()
         print(args.output)
         avg = core_modules.get_average(args)
-        tbl = utils.ReadTable(args.table)
+        tbl = core_modules.get_table(args)
         core_modules.get_output(avg, tbl, args)
-        # core_modules.main() # todo: fix sys.exit(0) for windows
+        core_modules.main() # todo: fix sys.exit(0) for windows
         output_fn = f"{os.path.join(TEST_DATA, 'motl')}/sample(1).txt"
         if platform.system() == "Windows":
             output_fn = os.path.normcase(output_fn)
