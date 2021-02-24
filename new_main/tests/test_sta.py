@@ -250,53 +250,6 @@ class Test_read_table(unittest.TestCase):
 
 
 class TestTable(unittest.TestCase):
-    def test_motl(self):
-        # table_em = f"{os.path.join(TEST_DATA, 'motl')}/motl_bin4_clathin_ref12_tomo_2.em"
-        table_em = f"{os.path.join(TEST_DATA, 'motl')}/sample.em"
-        table = utils.ReadTable(table_em)
-        i = random.randint(0, len(table.col_data))
-        print("random row number: " + str(i))
-        data = table[i]
-        print("content of the row: " + str(data))
-        motl_row = motl_t.TableRow(data)
-
-        self.assertTrue(-2 * math.pi <= motl_row.tdrot <= 2 * math.pi)
-        self.assertTrue(-2 * math.pi <= motl_row.tilt <= 2 * math.pi)
-        self.assertTrue(-2 * math.pi <= motl_row.narot <= 2 * math.pi)
-        self.assertTrue(type(motl_row.x) == float)
-        self.assertTrue(type(motl_row.y) == float)
-        self.assertTrue(type(motl_row.z) == float)
-        # print(motl_row.dx)
-
-        # test that rotation is correct
-        matrix_z_1 = np.array([
-            [math.cos(motl_row.tdrot), -math.sin(motl_row.tdrot), 0],
-            [math.sin(motl_row.tdrot), math.cos(motl_row.tdrot), 0],
-            [0, 0, 1]
-        ])
-
-        matrix_x = np.array([
-            [1, 0, 0],
-            [0, math.cos(motl_row.tilt), -math.sin(motl_row.tilt)],
-            [0, math.sin(motl_row.tilt), math.cos(motl_row.tilt)]
-        ])
-
-        matrix_z_2 = np.array([
-            [math.cos(motl_row.narot), -math.sin(motl_row.narot), 0],
-            [math.sin(motl_row.narot), math.cos(motl_row.narot), 0],
-            [0, 0, 1]
-        ])
-
-        expect_r = matrix_z_1.dot(matrix_x).dot(matrix_z_2)
-        actual_r = motl_row.transformation[:, 0:3]
-        self.assertTrue(np.allclose(expect_r, actual_r))
-
-        # test translation is correct
-        expect_tx = np.array([data[7] + data[10], data[8] + data[11], data[9] + data[12]])
-        actual_tx = motl_row.transformation[:, 3]
-        print(actual_tx)
-        print(expect_tx)
-        self.assertTrue(np.allclose(expect_tx, actual_tx))
 
     def test_dynamo(self):
         table_tbl = f"{os.path.join(TEST_DATA, 'dynamo')}/sample.tbl"
@@ -342,9 +295,109 @@ class TestTable(unittest.TestCase):
         actual_tx = dynamo_row.transformation[:, 3]
         self.assertTrue(np.allclose(expect_tx, actual_tx))
 
+    def test_motl(self):
+        file_root = f"{os.path.join(TEST_DATA, 'motl')}/sample"
+        sys.argv = f"{cmd} {file_root}".split(" ")
+        args = parse_args()
+        os.path.exists(args.average)
+        os.path.exists(args.table)
+
+        tbl = core_modules.get_table(args)
+        self.assertIsInstance(tbl, motl_t._Table)
+
+        i = random.randint(0, tbl.rows-1)
+        motl_row = tbl[i]
+
+        self.assertTrue(-2 * math.pi <= motl_row.tdrot <= 2 * math.pi)
+        self.assertTrue(-2 * math.pi <= motl_row.tilt <= 2 * math.pi)
+        self.assertTrue(-2 * math.pi <= motl_row.narot <= 2 * math.pi)
+        self.assertTrue(type(motl_row.x) == float)
+        self.assertTrue(type(motl_row.y) == float)
+        self.assertTrue(type(motl_row.z) == float)
+
+        matrix_z_1 = np.array([
+            [math.cos(motl_row.tdrot), -math.sin(motl_row.tdrot), 0],
+            [math.sin(motl_row.tdrot), math.cos(motl_row.tdrot), 0],
+            [0, 0, 1]
+        ])
+
+        matrix_x = np.array([
+            [1, 0, 0],
+            [0, math.cos(motl_row.tilt), -math.sin(motl_row.tilt)],
+            [0, math.sin(motl_row.tilt), math.cos(motl_row.tilt)]
+        ])
+
+        matrix_z_2 = np.array([
+            [math.cos(motl_row.narot), -math.sin(motl_row.narot), 0],
+            [math.sin(motl_row.narot), math.cos(motl_row.narot), 0],
+            [0, 0, 1]
+        ])
+
+        expect_r = matrix_z_1.dot(matrix_x).dot(matrix_z_2)
+        actual_r = motl_row.transformation[:, 0:3]
+        self.assertTrue(np.allclose(expect_r, actual_r))
+
+        # test translation is correct
+        data = tbl.col_data[i]
+        expect_tx = np.array([data[7] + data[10], data[8] + data[11], data[9] + data[12]])
+        actual_tx = motl_row.transformation[:, 3]
+        print(actual_tx)
+        print(expect_tx)
+        self.assertTrue(np.allclose(expect_tx, actual_tx))
+
+    def test_dynamo(self):
+        file_root = f"{os.path.join(TEST_DATA, 'dynamo')}/sample"
+        sys.argv = f"{cmd} {file_root}".split(" ")
+        args = parse_args()
+        os.path.exists(args.average)
+        os.path.exists(args.table)
+
+        tbl = core_modules.get_table(args)
+        self.assertIsInstance(tbl, dynamo_t._Table)
+
+        i = random.randint(0, tbl.rows - 1)
+        tbl_row = tbl[i]
+
+        self.assertTrue(-2 * math.pi <= tbl_row.tdrot <= 2 * math.pi)
+        self.assertTrue(-2 * math.pi <= tbl_row.tilt <= 2 * math.pi)
+        self.assertTrue(-2 * math.pi <= tbl_row.narot <= 2 * math.pi)
+        self.assertTrue(type(tbl_row.x) == float)
+        self.assertTrue(type(tbl_row.y) == float)
+        self.assertTrue(type(tbl_row.z) == float)
+
+        matrix_z_1 = np.array([
+            [math.cos(tbl_row.tdrot), math.sin(tbl_row.tdrot), 0],
+            [-math.sin(tbl_row.tdrot), math.cos(tbl_row.tdrot), 0],
+            [0, 0, 1]
+        ])
+
+        matrix_x = np.array([
+            [1, 0, 0],
+            [0, math.cos(tbl_row.tilt), math.sin(tbl_row.tilt)],
+            [0, -math.sin(tbl_row.tilt), math.cos(tbl_row.tilt)]
+        ])
+
+        matrix_z_2 = np.array([
+            [math.cos(tbl_row.narot), math.sin(tbl_row.narot), 0],
+            [-math.sin(tbl_row.narot), math.cos(tbl_row.narot), 0],
+            [0, 0, 1]
+        ])
+
+        expect_r = matrix_z_1.dot(matrix_x).dot(matrix_z_2)
+        actual_r = tbl_row.transformation[:, 0:3]
+        self.assertTrue(np.allclose(expect_r, actual_r))
+
+        # test translation is correct
+        data = tbl.col_data[i]
+        expect_tx = np.array(
+            [float(data[23]) + float(data[3]), float(data[24]) + float(data[4]), float(data[25]) + float(data[5])])
+        actual_tx = tbl_row.transformation[:, 3]
+        self.assertTrue(np.allclose(expect_tx, actual_tx))
+
     def test_peet(self):
         # -> peet.Table
         self.assertTrue(False)
+
 
 
 class TestOutput(unittest.TestCase):

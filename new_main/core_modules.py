@@ -39,14 +39,13 @@ def get_average(args):
         print(f"unknown average format '{args.average}'", file=sys.stderr)
 
 
-def get_table(args, table):
+def get_table(args):
     """Factory function which returns appropriate Table class"""
-    # todo: better structure of ReadTable + core_modules.get_table?
 
     if re.match(r".*\.map$", args.average) and re.match(r".*\.em$", args.table):
-        return motl_t._Table(table)
+        return motl_t._Table(args.table, args)
     if re.match(r".*\.em$", args.average) and re.match(r".*\.tbl$", args.table):
-        return dynamo_t.Table(table)
+        return dynamo_t._Table(args.table, args)  # todo: fix dynamo_t as well
     # elif re.match(r".*\.rec$", args.average) and re.match(r".*\.mod$", args.table):
     #    return peet_t.Average(args.average)
     else:
@@ -56,14 +55,9 @@ def get_table(args, table):
 def get_output(avg, tbl, args):
     """To be factory function which returns appropriate Output class"""
     with open(args.output, "w") as f:
-        for i, table_row in enumerate(tbl):
-            # fixme: fix
-            # line_to_write = f"{}," \
-            #                 + "".join(
-            #     str(f"{e},") for e in output_transformations[i]) \
-            #                 + "0,0,0,1\n"
-            line_to_write = f"{i + 1}\t{table_row}\n"
-            f.write(line_to_write)
+        for i, each in enumerate(tbl.__iter__()):
+            table_row = tbl.__getitem__(i)
+            f.write(table_row.__str__())
 
         f.write("Mode:" + "\t" + str(avg.mode) + "\n")
         f.write("Nc:" + "\t" + str(avg.nc) + "\n")
@@ -73,18 +67,19 @@ def get_output(avg, tbl, args):
         if args.compress:
             # compress_flag = 1
             f.write(avg.encoded_data_compressed)
-            print(f"{output_fn} is created, volume data is compressed.")
+            print(f"{args.output} is created, volume data is compressed.")
         else:
             # compress_flag = 0
             f.write(avg.encoded_data)
-            print(f"{output_fn} is created, volume data is not compressed.")
+            print(f"{args.output} is created, volume data is not compressed.")
 
 def main():
     args = parser.parse_args()
     # create the generic average object
     avg = get_average(args)
     # create the generic table object
-    tbl = utils.Table(args.table)
+    # tbl = utils.Table(args.table)
+    tbl = get_table(args)
     # create a generic output object
     # out = get_output(avg, tbl, args)
     # write the output

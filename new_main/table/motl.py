@@ -1,7 +1,11 @@
+import struct
+
 import numpy as np
 import math
 
 from . import TableBase
+
+
 def matrix_z(theta):
     matrix = np.array([
         [math.cos(theta), math.sin(theta), 0],
@@ -58,21 +62,22 @@ class TableRow:
              self.y,
              self.z]
         )
-
+        np.set_printoptions(suppress=True)  # To suppress scientific notation
         transformation = np.insert(rotation, 3, translation, axis=1)
         return transformation
 
     def __str__(self):
-        return f"Tbl_row={self.row}"
-
+        string = "".join(f"{str(e)}," for e in self.transformation.flatten())
+        line_to_write = string + "0,0,0,1\n"
+        return line_to_write
 
 
 class _Table(TableBase):
     """Read data from the given table file"""
 
     def _get_data(self):
-        if self._args.verbose:
-            print("Reading Briggs' motl table file...")
+#        if self._args.verbose:
+#            print("Reading Briggs' motl table file...")
 
         with open(self.fn, "rb") as motl:
             motl.seek(128 * 4)  # keep an eye

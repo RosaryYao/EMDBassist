@@ -2,6 +2,8 @@
 import numpy as np
 import math
 
+from . import TableBase
+
 
 def matrix_z(theta):
     matrix = np.array([
@@ -52,7 +54,7 @@ def rotate(a, b, c, convention="zxz"):
         raise NameError("convention not supported!")
 
 
-class Table:
+class TableRow:
     def __init__(self, tbl_row, voxel_size=(1.0, 1.0, 1.0)):
         self.row = tbl_row
         self.size = voxel_size
@@ -78,7 +80,32 @@ class Table:
         return transformation
 
     def __str__(self):
-        return f"Tbl_row={self.row}, voxel_size={self.size}"
+        string = "".join(f"{str(e)}," for e in self.transformation.flatten())
+        line_to_write = string + "0,0,0,1\n"
+        return line_to_write
 
 
+class _Table(TableBase):
+    """Read Dynamo table file"""
 
+    def _get_data(self):
+        #if self._args.verbose:
+        #    print("Reading Dynamo table file...")
+
+        with open(self.fn, "r") as f:
+            row_data = f.readlines()
+        self.col_data = [row.strip().split(" ") for row in row_data]
+
+        try:
+            length_row = [len(row) for row in self.col_data]
+            assert sum(length_row) / len(length_row) == length_row[0]
+        except AssertionError:
+            raise ValueError("Number of columns are not equal on all rows!")
+
+        return len(self.col_data[0]), len(self.col_data), self.col_data
+
+    def __getitem__(self, index):
+        return TableRow(self.col_data[index])
+
+    def __iter__(self):
+        return iter(self.col_data)
