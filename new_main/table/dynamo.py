@@ -91,8 +91,8 @@ class Table(TableBase):
     """Read Dynamo table file"""
 
     def _get_data(self):
-        if self._args.verbose:
-            print("Reading Dynamo table file...", file=sys.stderr)
+        #if self._args.verbose:
+        #    print("Reading Dynamo table file...", file=sys.stderr)
 
         with open(self.fn, "r") as f:
             row_data = f.readlines()

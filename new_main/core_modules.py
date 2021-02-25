@@ -13,10 +13,10 @@ from . import parser, average, table
 def get_average(args):
     """Factory function which returns appropriate Average class"""
     if re.match(r".*\.map$", args.average) and re.match(r".*\.em$", args.table):
-        return average.motl.Average(args)
+        return average.motl.Average(args.average, args)
     elif re.match(r".*\.em$", args.average) and re.match(r".*\.tbl$", args.table):
-        return average.dynamo.Average(
-            args.average)  # todo: change the interface, takes args in addition for modification
+        return average.dynamo.Average(args.average, args)
+        # todo: change the interface, takes args in addition for modification
     # elif re.match(r".*\.rec$", args.average) and re.match(r".*\.mod$", args.table):
     #    return peet_a.Average(args.average)
     else:

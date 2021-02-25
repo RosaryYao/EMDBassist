@@ -5,6 +5,7 @@ import math
 import os
 import platform
 import random
+import re
 import sys
 import unittest
 
@@ -17,6 +18,7 @@ from ..average import motl as motl_a
 from ..parser import parse_args
 from ..table import dynamo as dynamo_t
 from ..table import motl as motl_t
+# from . import parser, average, table
 
 cmd = "tra"
 
@@ -122,17 +124,17 @@ class TestAverage(unittest.TestCase):
     def test_motl(self):
         sys.argv = f"{cmd} {os.path.join(TEST_DATA, 'motl', 'emd_12132')}".split(' ')
         args = parse_args()
-        avobj = average.motl.Average(args.average, args)
-        self.assertTrue(np.allclose(np.array(avobj.voxel_size), np.array((7.08, 7.08, 7.08))))
-        self.assertEqual(avobj.nc, 50)
-        self.assertEqual(avobj.nr, 50)
-        self.assertEqual(avobj.ns, 50)
-        self.assertEqual(avobj.origin, (0, 0, 0))
-        self.assertEqual(avobj.mode, 2)
-        self.assertTrue(avobj.encoded_data.startswith("7CigvyDAmL/JA1O/FIe1vjkme"))
+        avg = average.motl.Average(args.average, args)
+        self.assertTrue(np.allclose(np.array(avg.voxel_size), np.array((7.08, 7.08, 7.08))))
+        self.assertEqual(avg.nc, 50)
+        self.assertEqual(avg.nr, 50)
+        self.assertEqual(avg.ns, 50)
+        self.assertEqual(avg.origin, (0, 0, 0))
+        self.assertEqual(avg.mode, 2)
+        self.assertTrue(avg.encoded_data.startswith("7CigvyDAmL/JA1O/FIe1vjkme"))
 
         # test zlib compression
-        data_binary = base64.b64decode(avobj.encoded_data_compressed)[:4]
+        data_binary = base64.b64decode(avg.encoded_data_compressed)[:4]
         ascii_hex = binascii.b2a_hex(data_binary)
         """
         Recognizing zlib compression:
@@ -153,15 +155,15 @@ class TestAverage(unittest.TestCase):
         average_em = f"{os.path.join(TEST_DATA, 'dynamo')}/sample.em"
         if platform.system() == "Windows":
             average_em = os.path.normcase(average_em)
-        avobj = dynamo_a.Average(average_em)
-        self.assertEqual(avobj.nc, 40)
-        self.assertEqual(avobj.nr, 40)
-        self.assertEqual(avobj.ns, 40)
-        self.assertEqual(avobj.mode, 2)
-        self.assertTrue(avobj.encoded_data.startswith("6wVsv0vjKr"))
+        avg = average.dynamo.Average(average_em)
+        self.assertEqual(avg.nc, 40)
+        self.assertEqual(avg.nr, 40)
+        self.assertEqual(avg.ns, 40)
+        self.assertEqual(avg.mode, 2)
+        self.assertTrue(avg.encoded_data.startswith("6wVsv0vjKr"))
 
         # test zlib compression
-        data_binary = base64.b64decode(avobj.encoded_data_compressed)[:4]
+        data_binary = base64.b64decode(avg.encoded_data_compressed)[:4]
         ascii_hex = binascii.b2a_hex(data_binary)
         """
         Recognizing zlib compression:
@@ -231,7 +233,7 @@ class TestTable(unittest.TestCase):
         os.path.exists(args.table)
 
         tbl = core_modules.get_table(args)
-        self.assertIsInstance(tbl, motl_t.Table)
+        self.assertIsInstance(tbl, table.motl.Table)
 
         i = random.randint(0, tbl.rows - 1)
         motl_row = tbl[i]
@@ -340,16 +342,10 @@ class TestOutput(unittest.TestCase):
         if platform.system() == "Windows":
             output_fn = os.path.normcase(output_fn)
         self.assertTrue(os.path.exists(output_fn))
+        os.remove(output_fn)
 
     def test_transformations(self):
-        self.assertTrue(False)
-
-    def test_output_compression(self):
-        self.assertTrue(False)
-
-    def test_file_rename(self):
-        # todo: or rename
-        file_root = f"{os.path.join(TEST_DATA, 'motl')}/sample"
+        file_root = f"{os.path.join(TEST_DATA, 'dynamo')}/sample"
         if platform.system() == "Windows":
             file_root = os.path.normcase(file_root)
         sys.argv = f"{cmd} {file_root}".split(" ")
@@ -357,42 +353,86 @@ class TestOutput(unittest.TestCase):
         avg = core_modules.get_average(args)
         tbl = core_modules.get_table(args)
         core_modules.get_output(avg, tbl, args)
-        core_modules.main() # todo: fix sys.exit(0) for windows
-        output_fn = f"{os.path.join(TEST_DATA, 'motl')}/sample(1).txt"
+        # core_modules.main() # todo: fix sys.exit(0) for windows
+        output_fn = f"{os.path.join(TEST_DATA, 'dynamo')}/sample.txt"
         if platform.system() == "Windows":
             output_fn = os.path.normcase(output_fn)
-        self.assertTrue(os.path.exists(output_fn))
 
+        with open(output_fn) as output:
+            first_row = output.readline()
+            transformation = first_row.split(",")
+        self.assertEqual(len(transformation), 17)
+        os.remove(output_fn)
+
+    def test_output_volume_information(self):
+        file_root = f"{os.path.join(TEST_DATA, 'dynamo')}/sample"
+        if platform.system() == "Windows":
+            file_root = os.path.normcase(file_root)
+        sys.argv = f"{cmd} {file_root}".split(" ")
+        args = parse_args()
+        avg = core_modules.get_average(args)
+        tbl = core_modules.get_table(args)
+        core_modules.get_output(avg, tbl, args)
+        # core_modules.main() # todo: fix sys.exit(0) for windows
+        output_fn = f"{os.path.join(TEST_DATA, 'dynamo')}/sample.txt"
+        if platform.system() == "Windows":
+            output_fn = os.path.normcase(output_fn)
+
+        with open(output_fn) as output:
+            output_list = output.readlines()
+            for each in output_list:
+                if re.match(r"^Nc:", each):
+                    nc = re.findall(r"\d+", each)
+                    nc = int(nc[0])
+                if re.match(r'^Nr', each):
+                    nr = re.findall(r'\d+', each)
+                    nr = int(nr[0])
+                if re.match(r"^Ns:", each):
+                    ns = re.findall(r"\d+", each)
+                    ns = int(ns[0])
+                if re.match(r"^Mode:", each):
+                    mode = re.findall(r"\d+", each)
+                    mode = int(mode[0])
+        os.remove(output_fn)
+        self.assertEqual(nc, 40)
+        self.assertEqual(nr, 40)
+        self.assertEqual(ns, 40)
+        self.assertEqual(mode, 2)
+
+    def test_output_uncompressed(self):
+        self.assertTrue(False)
+
+    def test_output_compressed(self):
+        self.assertTrue(False)
 
 class TestCoreModules(unittest.TestCase):
-
     def test_motl(self):
         # tra file # file is a motl .em, .map
         self.file_root = f"{os.path.join(TEST_DATA, 'motl')}/sample"
         if platform.system() == "Windows":
             self.file_root = os.path.normcase(self.file_root)
 
-        sys.argv = f"{cmd} {self.file_root}".split(" ")
+        sys.argv = f"{cmd} {self.file_root} -f".split(" ")
         args = parse_args()
-        cls_average = core_modules.get_average(args)
-        cls_table_file = utils.ReadTable(args.table)
-        cls_table = core_modules.get_table(args, cls_table_file[random.randint(0, cls_table_file.rows)])
-        # todo: better structure of ReadTable + core_modules.get_table?
+        avg = core_modules.get_average(args)
+        tbl = core_modules.get_table(args)
 
-        self.assertIsInstance(cls_average, motl_a.Average)
-        self.assertIsInstance(cls_table, motl_t.TableRow)
+        self.assertIsInstance(avg, average.motl.Average)
+        self.assertIsInstance(tbl, table.motl.Table)
 
     def test_dynamo(self):
         self.file_root = f"{os.path.join(TEST_DATA, 'dynamo')}/sample"
         if platform.system() == "Windows":
             self.file_root = os.path.normcase(self.file_root)
 
-        sys.argv = f"{cmd} {self.file_root}".split(" ")
+        sys.argv = f"{cmd} {self.file_root} -f".split(" ")
         args = parse_args()
 
-        cls_average = core_modules.get_average(args)
-        cls_table_file = utils.ReadTable(args.table)
-        cls_table = core_modules.get_table(args, cls_table_file[random.randint(0, cls_table_file.rows)])
-        # todo: better structure of ReadTable + core_modules.get_table?
-        self.assertIsInstance(cls_average, dynamo_a.Average)
-        self.assertIsInstance(cls_table, dynamo_t.Table)
+        avg = core_modules.get_average(args)
+        tbl = core_modules.get_table(args)
+        self.assertIsInstance(avg, average.dynamo.Average)
+        self.assertIsInstance(tbl, table.dynamo.Table)
+
+    def test_output(self):
+        self.assertTrue(False)
+

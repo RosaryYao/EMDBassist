@@ -11,10 +11,13 @@ class Average:
     The rest is volume data.
     """
 
-    def __init__(self, filename):
-        self.filename = filename
+    def __init__(self, filename, args):
+        self.fn = filename
+        self._args = args
+        self.mode, self.nc, self.nr, self.ns, self.encoded_data = self._get_data()
 
-        with open(self.filename, 'rb') as em:
+    def _get_data(self):
+        with open(self.fn, 'rb') as em:
             # the header is 128 words = 512 bytes. np.dtype = "int32" (long integer)
             # we read the first 4 words (word = 4 bytes)
             self.dynamo_header = struct.unpack('128i', em.read(128 * 4))
@@ -42,6 +45,7 @@ class Average:
             self.volume_data = struct.unpack(f'{self.nc * self.nr * self.ns}{type_flag}', self.raw_data)
             # self.encoded_data = base64.b64encode(self.volume_data).decode("utf-8")
             self.encoded_data = base64.b64encode(self.raw_data).decode("utf-8")
+            return self.mode, self.nc, self.nr, self.ns, self.encoded_data
 
     @property
     def encoded_data_compressed(self):

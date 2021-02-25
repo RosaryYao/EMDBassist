@@ -77,8 +77,8 @@ class Table(TableBase):
     """Read data from the given table file"""
 
     def _get_data(self):
-        if self._args.verbose:
-            print("Reading Briggs' motl table file...", file=sys.stderr)
+        #if self._args.verbose:
+        #    print("Reading Briggs' motl table file...", file=sys.stderr)
 
         with open(self.fn, "rb") as motl:
             motl.seek(128 * 4)  # keep an eye
