@@ -39,9 +39,12 @@ def get_table(args):
 def get_output(avg, tbl, args):
     """To be factory function which returns appropriate Output class"""
     with open(args.output, "w") as f:
+        # fixme: once a class has a __iter__() method we simply iterate over the class
         for i, each in enumerate(tbl.__iter__()):
+            # fixme: once a class has a __getitem__() method we simply use [i] syntax
             table_row = tbl.__getitem__(i)
             f.write(f"{i+1},")
+            # fixme: once a class has a __str__() method just use str(obj) to stringify it
             f.write(table_row.__str__())
 
         f.write("Mode:" + "\t" + str(avg.mode) + "\n")
