@@ -13,14 +13,18 @@ from . import parser, average, table
 def get_average(args):
     """Factory function which returns appropriate Average class"""
     if re.match(r".*\.map$", args.average) and re.match(r".*\.em$", args.table):
+        if args.verbose:
+            print("Reading Briggs' subtomogram average (.map) and table (.em) files...")
         return average.motl.Average(args.average, args)
     elif re.match(r".*\.em$", args.average) and re.match(r".*\.tbl$", args.table):
+        if args.verbose:
+            print("Reading Dynamo subtomogram average (.em) and table (.tbl) files...")
         return average.dynamo.Average(args.average, args)
-        # todo: change the interface, takes args in addition for modification
+
     # elif re.match(r".*\.rec$", args.average) and re.match(r".*\.mod$", args.table):
     #    return peet_a.Average(args.average)
     else:
-        print(f"unknown average format '{args.average}'", file=sys.stderr)
+        raise TypeError(f"unknown average format '{args.average}'")
 
 
 def get_table(args):
@@ -33,7 +37,7 @@ def get_table(args):
     # elif re.match(r".*\.rec$", args.average) and re.match(r".*\.mod$", args.table):
     #    return peet_t.Average(args.average)
     else:
-        print(f"unknown table format '{args.table}'", file=sys.stderr)
+        raise TypeError(f"unknown table format '{args.table}'")
 
 
 def get_output(avg, tbl, args):

@@ -1,5 +1,6 @@
 import argparse
 import os
+import re
 import sys
 import pathlib
 import platform
@@ -12,16 +13,12 @@ parser.add_argument('-A', '--average', help='averaged density')
 
 # parser.add_argument("-o", "--output", help="the output file name (.txt)")
 parser.add_argument("-o", "--output", help="the output file name (.txt)")
-parser.add_argument('-f', "--force", help='force to overwrite the existing output file', default=False, action='store_true')
+parser.add_argument('-f', "--force", help='force to overwrite the existing output file [default: False]', default=False, action='store_true')
 
 
 parser.add_argument("-c", "--compress", default=False, action="store_true",
                     help="Compress the voxel data [default: False]")
-#parser.add_argument("-O", "--tomogram-origin",
-#                    help="Print the nxstart, nystart, nzstart of the tomogram file in the x, y, z directions. Currently support .map and .mrc format")
-#parser.add_argument("-v", "--voxel-size",
-#                    help="Print the voxel-size of the tomogram file in the x, y, z directions. Currently support .map and .mrc")
-# todo
+parser.add_argument("-v", "--verbose", default=False, action="store_true", help="Give verbose description")
 
 def _check_file_types(args):
     """returns indicator of which file type"""
@@ -71,9 +68,18 @@ def parse_args():
     # we are guaranteed we have reliable and consistent args
 
     if not args.output:
-        args.output = f"{args.file}.txt"
+        if args.file:
+            args.output = f'{args.file}.txt'
+        else:
+            extension = re.findall(r'\.[a-z]+$', args.average)[-1]  # to ensure that extension corresponds to the last "found"
+            file_root = args.average.replace(extension, '')
+            args.output = f"{file_root}.txt"
     else:
         assert args.output
+
+    # Suit different systems
+    if platform.system() == "Windows":
+        args.output = os.path.normcase(args.output)
 
     # Check whether the file already exists
     if args.force:
@@ -89,16 +95,7 @@ def parse_args():
         # print("Output encoded voxel data is not compressed.")
         print(f"{args.output} is created, volume data is not compressed.")
 
-#    if args.tomogram_origin:
-#        import mrcfile
-#        with mrcfile.open(args.tomogram_origin) as mrc:
-#            start = int(mrc.header.nxstart), int(mrc.header.nystart), int(mrc.header.nzstart)
-#            print(f"The map starts at {tuple(start)}.")
-
-#    if args.voxel_size:
-#        import mrcfile
-#        with mrcfile.open(args.voxel_size) as mrc:
-#            size = mrc.voxel_size
-#            print(f"The voxel size of the tomogram is {size}.")
+    if args.verbose:
+        print("Giving verbose description.")
 
     return args
