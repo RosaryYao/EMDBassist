@@ -28,7 +28,7 @@ def get_table(args):
 
     if re.match(r".*\.map$", args.average) and re.match(r".*\.em$", args.table):
         return table.motl.Table(args.table, args)
-    if re.match(r".*\.em$", args.average) and re.match(r".*\.tbl$", args.table):
+    elif re.match(r".*\.em$", args.average) and re.match(r".*\.tbl$", args.table):
         return table.dynamo.Table(args.table, args)  # todo: fix dynamo_t as well
     # elif re.match(r".*\.rec$", args.average) and re.match(r".*\.mod$", args.table):
     #    return peet_t.Average(args.average)
