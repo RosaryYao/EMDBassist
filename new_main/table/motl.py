@@ -105,4 +105,7 @@ class Table(TableBase):
         return TableRow(self.col_data[index])
 
     def __iter__(self):
-        return iter(self.col_data)
+        return iter(map(TableRow, self.col_data))
+
+    def __len__(self):
+        return len(self.rows)

@@ -45,19 +45,14 @@ def get_table(args):
 def get_output(avg, tbl, args):
     """To be factory function which returns appropriate Output class"""
     with open(args.output, "w") as f:
-        # fixme: once a class has a __iter__() method we simply iterate over the class
+        f.write("mode:" + "\t" + str(avg.mode) + "\n")
+        f.write("nc:" + "\t" + str(avg.nc) + "\n")
+        f.write("nr:" + "\t" + str(avg.nr) + "\n")
+        f.write("ns:" + "\t" + str(avg.ns) + "\n")
+        f.write(f"txs:\t{len(tbl)}\n")
         for i, each in enumerate(tbl):
-            # fixme: once a class has a __getitem__() method we simply use [i] syntax
-            table_row = tbl.__getitem__(i)
-            f.write(f"{i+1},")
-            # fixme: once a class has a __str__() method just use str(obj) to stringify it
-            f.write(table_row.__str__())
-
-        f.write("Mode:" + "\t" + str(avg.mode) + "\n")
-        f.write("Nc:" + "\t" + str(avg.nc) + "\n")
-        f.write("Nr:" + "\t" + str(avg.nr) + "\n")
-        f.write("Ns:" + "\t" + str(avg.ns) + "\n")
-
+            table_row = tbl[i]
+            f.write(f"{i+1},{str(table_row)}")
         if args.compress:
             f.write(avg.encoded_data_compressed)
             print(f"{args.output} is created, volume data is compressed.")
