@@ -24,7 +24,9 @@ def get_average(args):
     # elif re.match(r".*\.rec$", args.average) and re.match(r".*\.mod$", args.table):
     #    return peet_a.Average(args.average)
     else:
-        raise TypeError(f"unknown average format '{args.average}'")
+        # todo: print(...)
+        return None
+        #raise TypeError(f"unknown average format '{args.average}'")
 
 
 def get_table(args):
@@ -33,7 +35,7 @@ def get_table(args):
     if re.match(r".*\.map$", args.average) and re.match(r".*\.em$", args.table):
         return table.motl.Table(args.table, args)
     elif re.match(r".*\.em$", args.average) and re.match(r".*\.tbl$", args.table):
-        return table.dynamo.Table(args.table, args)  # todo: fix dynamo_t as well
+        return table.dynamo.Table(args.table, args)
     # elif re.match(r".*\.rec$", args.average) and re.match(r".*\.mod$", args.table):
     #    return peet_t.Average(args.average)
     else:
@@ -44,7 +46,7 @@ def get_output(avg, tbl, args):
     """To be factory function which returns appropriate Output class"""
     with open(args.output, "w") as f:
         # fixme: once a class has a __iter__() method we simply iterate over the class
-        for i, each in enumerate(tbl.__iter__()):
+        for i, each in enumerate(tbl):
             # fixme: once a class has a __getitem__() method we simply use [i] syntax
             table_row = tbl.__getitem__(i)
             f.write(f"{i+1},")
